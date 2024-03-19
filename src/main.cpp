@@ -16,6 +16,7 @@
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
+#include "imfilebrowser.h"
 #include <stdio.h>
 #include <SDL.h>
 
@@ -92,6 +93,13 @@ int main(int, char**)
     bool show_another_window = false;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
+    // create a file browser instance
+    ImGui::FileBrowser fileDialog;
+
+    // (optional) set browser properties
+    fileDialog.SetTitle("title");
+//    fileDialog.SetTypeFilters({ ".h", ".cpp" });
+
     // Main loop
     bool done = false;
     while (!done)
@@ -116,6 +124,22 @@ int main(int, char**)
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
 
+        if(ImGui::Begin("dummy window"))
+        {
+            // open file dialog when user clicks this button
+            if(ImGui::Button("open file dialog"))
+                fileDialog.Open();
+        }
+        ImGui::End();
+
+        fileDialog.Display();
+
+        if(fileDialog.HasSelected())
+        {
+            std::cout << "Selected filename" << fileDialog.GetSelected().string() << std::endl;
+            fileDialog.ClearSelected();
+        }
+
         // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
         if (show_demo_window)
             ImGui::ShowDemoWindow(&show_demo_window);
@@ -135,26 +159,26 @@ int main(int, char**)
             ImGui::SetNextWindowSize(use_work_area ? viewport->WorkSize : viewport->Size);
 
 
-            ImGui::Begin("Hello, world!", nullptr, flags);                          // Create a window called "Hello, world!" and append into it.
-
-            ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-            ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-            ImGui::Checkbox("Another Window", &show_another_window);
-
-            ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-            ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
-
-            if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-            {
-                counter++;
-                std::cout << "button" << std::endl;
-                system("/Applications/GZDoom.app/Contents/MacOS/gzdoom -iwad doom2.wad -file \"Insanity Edged 2024-01-31.pk3\"");
-            }
-            ImGui::SameLine();
-            ImGui::Text("counter = %d", counter);
-
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-            ImGui::End();
+//            ImGui::Begin("Hello, world!", nullptr, flags);                          // Create a window called "Hello, world!" and append into it.
+//
+//            ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+//            ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
+//            ImGui::Checkbox("Another Window", &show_another_window);
+//
+//            ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+//            ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+//
+//            if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+//            {
+//                counter++;
+//                std::cout << "button" << std::endl;
+//                system("/Applications/GZDoom.app/Contents/MacOS/gzdoom -iwad doom2.wad -file \"Insanity Edged 2024-01-31.pk3\"");
+//            }
+//            ImGui::SameLine();
+//            ImGui::Text("counter = %d", counter);
+//
+//            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+//            ImGui::End();
         }
 
         // 3. Show another simple window.
