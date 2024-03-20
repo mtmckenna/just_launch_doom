@@ -217,8 +217,9 @@ int main(int, char**)
         SDL_SetRenderDrawColor(renderer, (Uint8)(clear_color.x * 255), (Uint8)(clear_color.y * 255), (Uint8)(clear_color.z * 255), (Uint8)(clear_color.w * 255));
         SDL_RenderClear(renderer);
 
-        clearTexture(colorBufferTexture, colorBuffer, rendererWidth, rendererHeight, clearColor);
-        drawSquareInTexture(colorBufferTexture, colorBuffer, 100, 0xFFFF0000, rendererWidth);
+//        clearTexture(colorBufferTexture, colorBuffer, rendererWidth, rendererHeight, clearColor);
+//        drawSquareInTexture(colorBufferTexture, colorBuffer, 100, 0xFFFF0000, rendererWidth);
+        draw_fire(colorBufferTexture, colorBuffer, rendererWidth, rendererHeight);
         SDL_RenderCopy(renderer, colorBufferTexture, NULL, NULL);
 
 
