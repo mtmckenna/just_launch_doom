@@ -30,11 +30,20 @@ void spread_fire(SDL_Texture* texture, uint32_t *colorBuffer, int windowWidth, i
     if (pixelValue != 0)
     {
         int rand = std::rand() % 4;
-        to = from - windowWidth - rand + 1;
-        pixelValue =  fire_pixels[from] - (rand & 1);
+        bool change = std::rand() % 1 == 0;
+        to = from - windowWidth - rand;
+
+        if (change)
+        {
+            pixelValue =  fire_pixels[from] - (rand & 1);
+        }
+
     }
 
-    fire_pixels[to] = pixelValue;
+    if (to >= 0 && to < fire_pixels.size())
+    {
+        fire_pixels[to] = pixelValue;
+    }
 }
 
 
@@ -44,17 +53,14 @@ void draw_fire(SDL_Texture* texture, uint32_t *colorBuffer, int windowWidth, int
 
     if (fire_pixels.empty())
     {
-        fire_pixels.resize(windowWidth * window_height);
+        fire_pixels.resize(windowWidth * window_height, 0 );
         for (int i = 0; i < windowWidth * window_height; i++)
         {
             if (i > windowWidth * (window_height - 1) - windowWidth)
             {
                 fire_pixels[i] = COLOR_SIZE - 1;
             }
-            else
-            {
-                fire_pixels[i] = 0;
-            }
+
         }
     }
 
@@ -65,7 +71,6 @@ void draw_fire(SDL_Texture* texture, uint32_t *colorBuffer, int windowWidth, int
             const int index = x + (windowWidth * y);
             spread_fire(texture, colorBuffer, windowWidth, index);
             colorBuffer[index] = COLORS[fire_pixels[index]];
-//            colorBuffer[index] = 0x110000FF;
         }
     }
 
