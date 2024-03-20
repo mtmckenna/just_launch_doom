@@ -20,9 +20,17 @@
 #include <stdio.h>
 #include <SDL.h>
 
+#include "fire.h"
+
+
 #if !SDL_VERSION_ATLEAST(2,0,17)
 #error This backend requires SDL 2.0.17+ because of SDL_RenderGeometry() function
 #endif
+
+int rendererWidth, rendererHeight;
+uint32_t *colorBuffer = nullptr;
+
+SDL_Renderer* renderer; // Assume this is your initialized SDL_Render
 
 // Main code
 int main(int, char**)
@@ -42,6 +50,8 @@ int main(int, char**)
     // Create window with SDL_Renderer graphics context
     SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
     SDL_Window* window = SDL_CreateWindow("Dear ImGui SDL2+SDL_Renderer example", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, window_flags);
+
+
     if (window == nullptr)
     {
         printf("Error: SDL_CreateWindow(): %s\n", SDL_GetError());
@@ -56,6 +66,11 @@ int main(int, char**)
     //SDL_RendererInfo info;
     //SDL_GetRendererInfo(renderer, &info);
     //SDL_Log("Current SDL_Renderer: %s", info.name);
+
+    SDL_GetRendererOutputSize(renderer, &rendererWidth, &rendererHeight);
+    colorBuffer = new uint32_t[sizeof(uint32_t) * rendererWidth * rendererHeight];
+
+    SDL_Texture* colorBufferTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, rendererWidth, rendererHeight);
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -92,6 +107,11 @@ int main(int, char**)
     bool show_demo_window = true;
     bool show_another_window = false;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+//    Uint32 clearColor = SDL_MapRGBA(SDL_AllocFormat(SDL_PIXELFORMAT_ARGB8888), 255, 255, 0, 255); // Red clear color
+//    Uint32 clearColor = SDL_MapRGBA(SDL_AllocFormat(SDL_PIXELFORMAT_ARGB8888), 255, 255, 255, 255); // Fully opaque yellow
+    Uint32 clearColor = SDL_MapRGBA(SDL_AllocFormat(SDL_PIXELFORMAT_ARGB8888), 255, 255, 0, 255); // Opaque yellow
+
+
 
     // create a file browser instance
     ImGui::FileBrowser fileDialog;
@@ -196,6 +216,12 @@ int main(int, char**)
         SDL_RenderSetScale(renderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
         SDL_SetRenderDrawColor(renderer, (Uint8)(clear_color.x * 255), (Uint8)(clear_color.y * 255), (Uint8)(clear_color.z * 255), (Uint8)(clear_color.w * 255));
         SDL_RenderClear(renderer);
+
+        clearTexture(colorBufferTexture, colorBuffer, rendererWidth, rendererHeight, clearColor);
+        drawSquareInTexture(colorBufferTexture, colorBuffer, 100, 0xFFFF0000, rendererWidth);
+        SDL_RenderCopy(renderer, colorBufferTexture, NULL, NULL);
+
+
         ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
         SDL_RenderPresent(renderer);
     }

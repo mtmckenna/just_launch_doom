@@ -2,6 +2,9 @@ CXX := clang++
 CXXFLAGS := -std=c++17 $(shell sdl2-config --cflags) -I/usr/local/include -I./
 SDL_STATIC_LIBS := $(shell sdl2-config --static-libs)
 LDFLAGS := $(SDL_STATIC_LIBS)
+DEBUGFLAGS := -g -O0
+CXXFLAGS += $(DEBUGFLAGS)
+
 
 SRC_DIR := ./src
 BUILD_DIR := ./build
@@ -25,3 +28,5 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
 
 clean:
 	rm -rf $(BUILD_DIR)
+
+.PHONY: clean all debug
