@@ -11,7 +11,10 @@
 // For a multi-platform app consider using e.g. SDL+DirectX on Windows and SDL+OpenGL on Linux/OSX.
 
 #include <iostream>
+#include <cassert>
+#include <fstream>
 
+#include "nlohmann/json.hpp"
 
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
@@ -29,8 +32,56 @@
 
 int rendererWidth, rendererHeight;
 uint32_t *colorBuffer = nullptr;
+nlohmann::json config = {
+    {"gzdoom_path", "/usr/local/bin/gzdoom"},
+    {"resolution", {1920, 1080}}
+};
+
+const std::string APP_NAME = "just_launch_doom";
 
 SDL_Renderer* renderer; // Assume this is your initialized SDL_Render
+
+std::string get_application_support_path() {
+    const char* homeDir = getenv("HOME");
+    assert(homeDir != nullptr);
+
+    std::string path = std::string(homeDir) + "/Library/Application Support/" + APP_NAME;
+    std::filesystem::create_directories(path);
+    return path;
+}
+
+std::string get_config_file_path() {
+    return get_application_support_path() + "/config.json";
+}
+
+bool write_config_file(std::string& path, nlohmann::json& config)
+{
+    // Add some settings
+    config["gzdoom_path"] = "/cats/dogs/gzdoom";
+    config["resolution"] = {1280, 720};
+
+    // Write to file
+    std::ofstream file(path);
+    if (file.is_open()) {
+        file << config.dump(4); // dump with 4 spaces indentation
+        file.close();
+    }
+}
+
+bool load_config_file(std::string& path, nlohmann::json& config)
+{
+    // if file exists, load it and put put data into config
+    // if not, create it and write some default settings
+    std::ifstream file(path);
+    if (file.is_open()) {
+        file >> config;
+        file.close();
+    } else {
+        write_config_file(path, config);
+    }
+}
+
+
 
 // Main code
 int main(int, char**)
@@ -42,6 +93,9 @@ int main(int, char**)
         return -1;
     }
 
+    std::string config_file_path = get_config_file_path();
+    load_config_file(config_file_path, config);
+
     // From 2.0.18: Enable native IME.
 #ifdef SDL_HINT_IME_SHOW_UI
     SDL_SetHint(SDL_HINT_IME_SHOW_UI, "1");
@@ -50,7 +104,6 @@ int main(int, char**)
     // Create window with SDL_Renderer graphics context
     SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
     SDL_Window* window = SDL_CreateWindow("Dear ImGui SDL2+SDL_Renderer example", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, window_flags);
-
 
     if (window == nullptr)
     {
@@ -63,9 +116,6 @@ int main(int, char**)
         SDL_Log("Error creating SDL_Renderer!");
         return 0;
     }
-    //SDL_RendererInfo info;
-    //SDL_GetRendererInfo(renderer, &info);
-    //SDL_Log("Current SDL_Renderer: %s", info.name);
 
     SDL_GetRendererOutputSize(renderer, &rendererWidth, &rendererHeight);
     colorBuffer = new uint32_t[sizeof(uint32_t) * rendererWidth * rendererHeight];
@@ -103,22 +153,13 @@ int main(int, char**)
     //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, nullptr, io.Fonts->GetGlyphRangesJapanese());
     //IM_ASSERT(font != nullptr);
 
-    // Our state
-    bool show_demo_window = true;
-    bool show_another_window = false;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-//    Uint32 clearColor = SDL_MapRGBA(SDL_AllocFormat(SDL_PIXELFORMAT_ARGB8888), 255, 255, 0, 255); // Red clear color
-//    Uint32 clearColor = SDL_MapRGBA(SDL_AllocFormat(SDL_PIXELFORMAT_ARGB8888), 255, 255, 255, 255); // Fully opaque yellow
-    Uint32 clearColor = SDL_MapRGBA(SDL_AllocFormat(SDL_PIXELFORMAT_ARGB8888), 255, 255, 0, 255); // Opaque yellow
-
-
 
     // create a file browser instance
     ImGui::FileBrowser fileDialog;
 
     // (optional) set browser properties
-    fileDialog.SetTitle("title");
-//    fileDialog.SetTypeFilters({ ".h", ".cpp" });
+    fileDialog.SetTitle("Select GZDoom executable");
 
     // Main loop
     bool done = false;
@@ -144,7 +185,16 @@ int main(int, char**)
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
 
-        if(ImGui::Begin("dummy window"))
+        ImGui::SetNextWindowBgAlpha(0.0f);
+
+        ImVec2 screenSize = io.DisplaySize;
+        ImGui::SetNextWindowPos(ImVec2(0, 0));
+        ImGui::SetNextWindowSize(screenSize);
+        ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoInputs;
+        ImGuiWindowFlags window_flags2 = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings;
+
+//        if(ImGui::Begin("dummy window", nullptr, window_flags))
+        if(ImGui::Begin("dummy window", nullptr, window_flags2))
         {
             // open file dialog when user clicks this button
             if(ImGui::Button("open file dialog"))
@@ -160,56 +210,6 @@ int main(int, char**)
             fileDialog.ClearSelected();
         }
 
-        // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-        if (show_demo_window)
-            ImGui::ShowDemoWindow(&show_demo_window);
-
-        // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
-        {
-            static float f = 0.0f;
-            static int counter = 0;
-
-            static bool use_work_area = true;
-            static ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings;
-
-            // We demonstrate using the full viewport area or the work area (without menu-bars, task-bars etc.)
-            // Based on your use case you may want one or the other.
-            const ImGuiViewport* viewport = ImGui::GetMainViewport();
-            ImGui::SetNextWindowPos(use_work_area ? viewport->WorkPos : viewport->Pos);
-            ImGui::SetNextWindowSize(use_work_area ? viewport->WorkSize : viewport->Size);
-
-
-//            ImGui::Begin("Hello, world!", nullptr, flags);                          // Create a window called "Hello, world!" and append into it.
-//
-//            ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-//            ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-//            ImGui::Checkbox("Another Window", &show_another_window);
-//
-//            ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-//            ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
-//
-//            if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-//            {
-//                counter++;
-//                std::cout << "button" << std::endl;
-//                system("/Applications/GZDoom.app/Contents/MacOS/gzdoom -iwad doom2.wad -file \"Insanity Edged 2024-01-31.pk3\"");
-//            }
-//            ImGui::SameLine();
-//            ImGui::Text("counter = %d", counter);
-//
-//            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-//            ImGui::End();
-        }
-
-        // 3. Show another simple window.
-        if (show_another_window)
-        {
-            ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-            ImGui::Text("Hello from another window!");
-            if (ImGui::Button("Close Me"))
-                show_another_window = false;
-            ImGui::End();
-        }
 
         // Rendering
         ImGui::Render();
@@ -217,11 +217,8 @@ int main(int, char**)
         SDL_SetRenderDrawColor(renderer, (Uint8)(clear_color.x * 255), (Uint8)(clear_color.y * 255), (Uint8)(clear_color.z * 255), (Uint8)(clear_color.w * 255));
         SDL_RenderClear(renderer);
 
-//        clearTexture(colorBufferTexture, colorBuffer, rendererWidth, rendererHeight, clearColor);
-//        drawSquareInTexture(colorBufferTexture, colorBuffer, 100, 0xFFFF0000, rendererWidth);
         draw_fire(colorBufferTexture, colorBuffer, rendererWidth, rendererHeight);
         SDL_RenderCopy(renderer, colorBufferTexture, NULL, NULL);
-
 
         ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
         SDL_RenderPresent(renderer);
