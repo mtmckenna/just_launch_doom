@@ -13,15 +13,13 @@
 #include <iostream>
 #include <cassert>
 #include <fstream>
+#include <SDL.h>
 
 #include "nlohmann/json.hpp"
-
-#include "imgui.h"
-#include "imgui_impl_sdl2.h"
-#include "imgui_impl_sdlrenderer2.h"
-#include "imfilebrowser.h"
-#include <stdio.h>
-#include <SDL.h>
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_sdl2.h"
+#include "imgui/imgui_impl_sdlrenderer2.h"
+#include "imgui/imfilebrowser.h"
 
 #include "fire.h"
 

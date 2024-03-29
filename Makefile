@@ -9,7 +9,9 @@ CXXFLAGS += $(DEBUGFLAGS)
 SRC_DIR := ./src
 BUILD_DIR := ./build
 
-SOURCES := $(wildcard $(SRC_DIR)/*.cpp)
+#SOURCES := $(wildcard $(SRC_DIR)/*.cpp)
+SOURCES := $(shell find $(SRC_DIR) -name '*.cpp')
+
 OBJECTS := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(SOURCES))
 EXECUTABLE := just_launch_doom
 
@@ -21,9 +23,12 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 $(BUILD_DIR)/$(EXECUTABLE): $(OBJECTS)
+
+
 	$(CXX) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
+	mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
