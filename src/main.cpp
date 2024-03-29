@@ -41,7 +41,8 @@ const std::string APP_NAME = "just_launch_doom";
 
 SDL_Renderer* renderer; // Assume this is your initialized SDL_Render
 
-std::string get_application_support_path() {
+std::string get_application_support_path()
+{
     const char* homeDir = getenv("HOME");
     assert(homeDir != nullptr);
 
@@ -50,22 +51,27 @@ std::string get_application_support_path() {
     return path;
 }
 
+std::string get_initial_application_path()
+{
+    return "/Applications";
+}
+
 std::string get_config_file_path() {
     return get_application_support_path() + "/config.json";
 }
 
-bool write_config_file(std::string& path, nlohmann::json& config)
+bool write_config_file(const std::string& path, nlohmann::json& config)
 {
-    // Add some settings
-    config["gzdoom_path"] = "/cats/dogs/gzdoom";
-    config["resolution"] = {1280, 720};
-
     // Write to file
     std::ofstream file(path);
     if (file.is_open()) {
         file << config.dump(4); // dump with 4 spaces indentation
         file.close();
+    } else {
+        return false;
     }
+
+    return true;
 }
 
 bool load_config_file(std::string& path, nlohmann::json& config)
@@ -79,11 +85,19 @@ bool load_config_file(std::string& path, nlohmann::json& config)
     } else {
         write_config_file(path, config);
     }
+
+    return true;
 }
 
+bool update_setting(const std::string& key, const std::string& value, nlohmann::json& config)
+{
+    config[key] = value;
+    bool written = write_config_file(get_config_file_path(), config);
+    assert(written == true);
 
+    return true;
+}
 
-// Main code
 int main(int, char**)
 {
     // Setup SDL
@@ -94,7 +108,8 @@ int main(int, char**)
     }
 
     std::string config_file_path = get_config_file_path();
-    load_config_file(config_file_path, config);
+    bool loeaded = load_config_file(config_file_path, config);
+    assert(loeaded == true);
 
     // From 2.0.18: Enable native IME.
 #ifdef SDL_HINT_IME_SHOW_UI
@@ -137,21 +152,7 @@ int main(int, char**)
     ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
     ImGui_ImplSDLRenderer2_Init(renderer);
 
-    // Load Fonts
-    // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
-    // - AddFontFromFileTTF() will return the ImFont* so you can store it if you need to select the font among multiple.
-    // - If the file cannot be loaded, the function will return a nullptr. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
-    // - The fonts will be rasterized at a given size (w/ oversampling) and stored into a texture when calling ImFontAtlas::Build()/GetTexDataAsXXXX(), which ImGui_ImplXXXX_NewFrame below will call.
-    // - Use '#define IMGUI_ENABLE_FREETYPE' in your imconfig file to use Freetype for higher quality font rendering.
-    // - Read 'docs/FONTS.md' for more instructions and details.
-    // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
-    //io.Fonts->AddFontDefault();
-    //io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\segoeui.ttf", 18.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Roboto-Medium.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
-    //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, nullptr, io.Fonts->GetGlyphRangesJapanese());
-    //IM_ASSERT(font != nullptr);
+    io.FontGlobalScale = 2.0;
 
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
@@ -160,6 +161,7 @@ int main(int, char**)
 
     // (optional) set browser properties
     fileDialog.SetTitle("Select GZDoom executable");
+    fileDialog.SetPwd(get_initial_application_path());
 
     // Main loop
     bool done = false;
@@ -190,23 +192,24 @@ int main(int, char**)
         ImVec2 screenSize = io.DisplaySize;
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(screenSize);
-        ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoInputs;
-        ImGuiWindowFlags window_flags2 = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings;
+        ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings;
 
-//        if(ImGui::Begin("dummy window", nullptr, window_flags))
-        if(ImGui::Begin("dummy window", nullptr, window_flags2))
+        // Put everything in a full screen window
+        if(ImGui::Begin("fullscreen window", nullptr, window_flags))
         {
-            // open file dialog when user clicks this button
-            if(ImGui::Button("open file dialog"))
+            if(ImGui::Button("Select GZDoom executable"))
+            {
                 fileDialog.Open();
+            }
         }
+
         ImGui::End();
 
+        // Update gzdoom path setting
         fileDialog.Display();
-
         if(fileDialog.HasSelected())
         {
-            std::cout << "Selected filename" << fileDialog.GetSelected().string() << std::endl;
+            update_setting("gzdoom_path", fileDialog.GetSelected().string(), config);
             fileDialog.ClearSelected();
         }
 
