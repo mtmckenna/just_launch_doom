@@ -19,8 +19,8 @@
 int rendererWidth, rendererHeight;
 uint32_t *colorBuffer = nullptr;
 nlohmann::json config = {
-    {"gzdoom_path", "/usr/local/bin/gzdoom"},
-    {"resolution", {1920, 1080}}
+    {"gzdoom_path", ""},
+    {"resolution", {800, 600}}
 };
 
 const std::string APP_NAME = "just_launch_doom";
@@ -87,66 +87,14 @@ bool update_setting(const std::string& key, const std::string& value, nlohmann::
     return true;
 }
 
-// Example ImGui code
-void ShowMySelectableList() {
-    // Unique ID for child window
-    ImGui::BeginChild("MySelectableList", ImVec2(0, -ImGui::GetFrameHeightWithSpacing()), true);
-
-    for (int i = 0; i < 12; i++) { // Assuming you have 100 items to display
-        // Each selectable needs a unique label, so use the item index to differentiate
-
-        std::string label = "Item " + std::to_string(i);
-
-        // If the item is clicked, 'selected' will be true
-        if (ImGui::Selectable(label.c_str(), false)) {
-            // Item 'i' was clicked, perform an action here
-            // For example, print to console or store the clicked item's index
-            std::cout << "Item " << i << " clicked!" << std::endl;
-        }
-    }
-
-    ImGui::EndChild(); // End of scrollable area
-}
-
-// Example ImGui code using ListBox with dynamically generated items
-//void ShowMyDynamicListBox() {
-//    std::vector<std::string> items;
-//    for (int i = 0; i < 12; i++) { // Dynamically add items
-//        items.push_back("Item " + std::to_string(i));
-//    }
-//
-//    static int selectedItem = -1; // Index of the selected item, -1 means no selection
-//    // Convert vector of strings to array of const char* for ImGui::ListBox
-//    std::vector<const char*> itemsCStr;
-//    for (const auto& item : items) {
-//        itemsCStr.push_back(item.c_str());
-//    }
-//
-//    ImVec2 childSize = ImVec2(0, 7000);
-//
-//    ImGui::BeginChild("ListBoxScrollingRegion", childSize, true);
-//
-//    if (ImGui::ListBox("MyDynamicListBox", &selectedItem, itemsCStr.data(), static_cast<int>(itemsCStr.size()))) {
-//        // If an item is selected (user clicked on an item)
-//        std::cout << items[selectedItem] << " clicked!" << std::endl;
-//    }
-//
-//    ImGui::EndChild();
-//}
-
-void ShowMyDynamicListBox() {
-
-
+void show_iwad_list()
+{
     ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(0,0,0,50));
-
 
     std::vector<std::string> items;
     for (int i = 0; i < 120; i++) { // Dynamically add items
         items.push_back("Item " + std::to_string(i));
     }
-
-//    ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(255, 0, 0, 255)); // Red background
-
 
     static int selectedItem = -1; // Index of the selected item, -1 means no selection
 
@@ -174,6 +122,36 @@ void ShowMyDynamicListBox() {
     ImGui::PopStyleColor();
 }
 
+void show_gzdoom_button()
+{
+    // Show button
+    if(ImGui::Button("Select GZDoom executable"))
+    {
+        fileDialog.Open();
+    }
+
+    // Update path in settings
+    fileDialog.Display();
+    if(fileDialog.HasSelected())
+    {
+        update_setting("gzdoom_path", fileDialog.GetSelected().string(), config);
+        fileDialog.ClearSelected();
+    }
+
+    // Display path in UI
+    ImGui::SameLine();
+    std::string path = config["gzdoom_path"];
+
+    if (path.empty())
+    {
+        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "No GZDoom executable selected");
+    }
+    else
+    {
+        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "%s", path.c_str());
+    }
+}
+
 
 void update()
 {
@@ -186,10 +164,24 @@ void update()
         while (SDL_PollEvent(&event))
         {
             ImGui_ImplSDL2_ProcessEvent(&event);
-            if (event.type == SDL_QUIT)
-                done = true;
-            if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(window))
-                done = true;
+            switch (event.type)
+            {
+                case SDL_QUIT:
+                    done = true;
+                    break;
+                case SDL_WINDOWEVENT:
+                    if (event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(window))
+                        done = true;
+                    if (event.window.event == SDL_WINDOWEVENT_RESIZED)
+                    {
+                        // Update the configuration with the new size
+                        int newWidth = event.window.data1;
+                        int newHeight = event.window.data2;
+                        config["resolution"] = { newWidth, newHeight };
+                        write_config_file(get_config_file_path(), config); // Optionally save to file immediately
+                    }
+                    break;
+            }
         }
 
         // Start the Dear ImGui frame
@@ -208,23 +200,12 @@ void update()
         // Put everything in a full screen window
         if(ImGui::Begin("fullscreen window", nullptr, window_flags))
         {
-            if(ImGui::Button("Select GZDoom executable"))
-            {
-                fileDialog.Open();
-            }
-        }
+            show_gzdoom_button();
+            show_iwad_list();
 
-        ShowMyDynamicListBox();
+        }
 
         ImGui::End();
-
-        // Update gzdoom path setting
-        fileDialog.Display();
-        if(fileDialog.HasSelected())
-        {
-            update_setting("gzdoom_path", fileDialog.GetSelected().string(), config);
-            fileDialog.ClearSelected();
-        }
 
         // Rendering
         ImGui::Render();
@@ -260,7 +241,9 @@ int setup()
 
     // Create window with SDL_Renderer graphics context
     SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
-    window = SDL_CreateWindow("Dear ImGui SDL2+SDL_Renderer example", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, window_flags);
+
+    window = SDL_CreateWindow("Dear ImGui SDL2+SDL_Renderer example", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+                              config["resolution"][0], config["resolution"][1], window_flags);
 
     if (window == nullptr)
     {
@@ -302,6 +285,8 @@ int setup()
 
 void clean_up()
 {
+    write_config_file(get_config_file_path(), config);
+
     ImGui_ImplSDLRenderer2_Shutdown();
     ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();
