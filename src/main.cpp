@@ -119,6 +119,17 @@ void show_gzdoom_button()
     // Show button
     if(ImGui::Button("Select GZDoom executable"))
     {
+        fileDialog.SetTitle("Select GZDoom executable");
+
+        if (config["gzdoom_path"].empty())
+        {
+            fileDialog.SetPwd(get_initial_application_path());
+        }
+        else
+        {
+            fileDialog.SetPwd(config["gzdoom_path"]);
+        }
+
         fileDialog.Open();
     }
 
@@ -149,6 +160,17 @@ void show_pwad_button()
     // Show button
     if(ImGui::Button("Select PWAD"))
     {
+        fileDialog.SetTitle("Select PWAD");
+
+        if (config["pwad_path"].empty())
+        {
+            fileDialog.SetPwd("~/");
+        }
+        else
+        {
+            fileDialog.SetPwd(config["pwad_path"]);
+        }
+
         fileDialog.Open();
     }
 
@@ -224,7 +246,7 @@ void update()
         if(ImGui::Begin("fullscreen window", nullptr, window_flags))
         {
             show_gzdoom_button();
-//            show_pwad_button();
+            show_pwad_button();
             show_iwad_list();
 
         }
@@ -321,10 +343,6 @@ int setup()
     ImGui_ImplSDLRenderer2_Init(renderer);
 
     io.FontGlobalScale = 1.5;
-
-    // (optional) set browser properties
-    fileDialog.SetTitle("Select GZDoom executable");
-    fileDialog.SetPwd(get_initial_application_path());
 
     setup_config_file();
 }
