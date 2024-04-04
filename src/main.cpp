@@ -20,7 +20,8 @@ int rendererWidth, rendererHeight;
 uint32_t *colorBuffer = nullptr;
 nlohmann::json config = {
     {"gzdoom_path", ""},
-    {"resolution", {800, 600}}
+    {"resolution", {800, 600}},
+    {"pwad_path", ""}
 };
 
 const std::string APP_NAME = "just_launch_doom";
@@ -78,15 +79,6 @@ bool load_config_file(std::string& path, nlohmann::json& config)
     return true;
 }
 
-bool update_setting(const std::string& key, const std::string& value, nlohmann::json& config)
-{
-    config[key] = value;
-    bool written = write_config_file(get_config_file_path(), config);
-    assert(written == true);
-
-    return true;
-}
-
 void show_iwad_list()
 {
     ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(0,0,0,50));
@@ -134,7 +126,7 @@ void show_gzdoom_button()
     fileDialog.Display();
     if(fileDialog.HasSelected())
     {
-        update_setting("gzdoom_path", fileDialog.GetSelected().string(), config);
+        config["gzdoom_path"] = fileDialog.GetSelected().string();
         fileDialog.ClearSelected();
     }
 
@@ -150,6 +142,37 @@ void show_gzdoom_button()
     {
         ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "%s", path.c_str());
     }
+}
+
+void show_pwad_button()
+{
+    // Show button
+    if(ImGui::Button("Select PWAD"))
+    {
+        fileDialog.Open();
+    }
+
+    // Update path in settings
+    fileDialog.Display();
+    if(fileDialog.HasSelected())
+    {
+        config["pwad_path"] = fileDialog.GetSelected().string();
+        fileDialog.ClearSelected();
+    }
+
+    // Display path in UI
+    ImGui::SameLine();
+    std::string path = config["pwad_path"];
+
+    if (path.empty())
+    {
+        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "No PWAD selected (e.g. doom.wad)");
+    }
+    else
+    {
+        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "%s", path.c_str());
+    }
+
 }
 
 
@@ -201,6 +224,7 @@ void update()
         if(ImGui::Begin("fullscreen window", nullptr, window_flags))
         {
             show_gzdoom_button();
+//            show_pwad_button();
             show_iwad_list();
 
         }
@@ -221,18 +245,38 @@ void update()
     }
 }
 
+void setup_config_file()
+{
+    std::string config_file_path = get_config_file_path();
+    bool loaded = load_config_file(config_file_path, config);
+
+    if (config["gzdoom_path"].empty())
+    {
+        config["gzdoom_path"] = "";
+    }
+
+    if (config["pwad_path"].empty())
+    {
+        config["pwad_path"] = "";
+    }
+
+    if (config["resolution"].empty())
+    {
+        config["resolution"] = {800, 600};
+    }
+
+    assert(loaded == true);
+}
+
 int setup()
 {
+
     // Setup SDL
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0)
     {
         printf("Error: %s\n", SDL_GetError());
         return -1;
     }
-
-    std::string config_file_path = get_config_file_path();
-    bool loeaded = load_config_file(config_file_path, config);
-    assert(loeaded == true);
 
     // From 2.0.18: Enable native IME.
 #ifdef SDL_HINT_IME_SHOW_UI
@@ -242,7 +286,7 @@ int setup()
     // Create window with SDL_Renderer graphics context
     SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 
-    window = SDL_CreateWindow("Dear ImGui SDL2+SDL_Renderer example", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+    window = SDL_CreateWindow("Just Launch Doom", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                               config["resolution"][0], config["resolution"][1], window_flags);
 
     if (window == nullptr)
@@ -276,16 +320,19 @@ int setup()
     ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
     ImGui_ImplSDLRenderer2_Init(renderer);
 
-    io.FontGlobalScale = 2.0;
+    io.FontGlobalScale = 1.5;
 
     // (optional) set browser properties
     fileDialog.SetTitle("Select GZDoom executable");
     fileDialog.SetPwd(get_initial_application_path());
+
+    setup_config_file();
 }
 
 void clean_up()
 {
-    write_config_file(get_config_file_path(), config);
+    bool written = write_config_file(get_config_file_path(), config);
+    assert(written == true);
 
     ImGui_ImplSDLRenderer2_Shutdown();
     ImGui_ImplSDL2_Shutdown();
