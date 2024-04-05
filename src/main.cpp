@@ -2,6 +2,7 @@
 #include <cassert>
 #include <fstream>
 #include <SDL.h>
+#include <filesystem>
 
 #include "nlohmann/json.hpp"
 #include "imgui/imgui.h"
@@ -73,6 +74,15 @@ std::string get_initial_application_path()
 std::string get_config_file_path()
 {
     return get_application_support_path() + "/config.json";
+}
+
+std::string get_launch_command()
+{
+    std::string command = config["gzdoom_path"];
+    std::string iwad = config["iwad_path"];
+//        std::string pwad = " -file " + config["pwad_path"];
+    std::string cmd = "\"" + command + "\"" + " " + "-iwad " + "\"" + iwad + "\""; //+ pwad;
+    return cmd;
 }
 
 bool write_config_file(const std::string &path, nlohmann::json &config)
@@ -151,12 +161,10 @@ void show_launch_button()
     ImGui::Dummy(ImVec2(0.0f, 10.0f));
     ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f,0.0,0.0, 1.0f));
+
     if (ImGui::Button("Just Launch Doom!", ImVec2(-1, launch_button_height)))
     {
-        std::string command = config["gzdoom_path"];
-        std::string iwad = config["iwad_path"];
-//        std::string pwad = " -file " + config["pwad_path"];
-        std::string cmd = command + " " + iwad; //+ pwad;
+        std::string cmd = get_launch_command();
         std::cout << cmd << std::endl;
         system(cmd.c_str());
     }
@@ -218,7 +226,9 @@ void show_iwad_button()
             iwad_file_dialog.SetPwd("~/");
         } else
         {
-            iwad_file_dialog.SetPwd(config["iwad_path"]);
+            std::filesystem::path filePath(config["iwad_path"]);
+            std::filesystem::path directoryPath = filePath.parent_path();
+            iwad_file_dialog.SetPwd(directoryPath.c_str());
         }
 
         iwad_file_dialog.Open();
@@ -299,8 +309,8 @@ void show_pwad_button()
 
 void show_command()
 {
-    std::string gzdoom_path = config["gzdoom_path"].get<std::string>();
-    snprintf(command_buf, IM_ARRAYSIZE(command_buf), "%s", gzdoom_path.c_str());
+//    std::string gzdoom_path = config["gzdoom_path"].get<std::string>();
+    snprintf(command_buf, IM_ARRAYSIZE(command_buf), "%s", get_launch_command().c_str());
     ImGui::SeparatorText("Command to run Doom");
     if (ImGui::InputText("##command_id", command_buf, IM_ARRAYSIZE(command_buf)))
     {
