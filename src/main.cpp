@@ -140,27 +140,33 @@ bool read_config_file(std::string &path, nlohmann::json &config)
 
 
 void populate_pwad_list() {
-    // Clear the existing vector
+    auto selected_pwads = config["selected_pwads"];
     pwads.clear();
 
     std::string pwadPath = config["pwad_path"];
 
-    // Check if the directory exists and is accessible
-    if (!std::filesystem::exists(pwadPath) || !std::filesystem::is_directory(pwadPath)) {
-        // Handle the error appropriately
+    if (!std::filesystem::exists(pwadPath) || !std::filesystem::is_directory(pwadPath))
+    {
         std::cerr << "The specified PWAD path does not exist or is not a directory." << std::endl;
         return;
     }
 
-    // Iterate over the directory
-    for (const auto& entry : std::filesystem::directory_iterator(pwadPath)) {
-        // Check if it's a regular file
+    for (const auto& entry : std::filesystem::directory_iterator(pwadPath))
+    {
         if (entry.is_regular_file()) {
-            // You can add more checks here for file extension if necessary
             std::string filePath = entry.path().string();
 
-            // Add the file path and set the selection flag to false
-            pwads.emplace_back(filePath, false);
+            bool selected = false;
+            for (const auto& selected_pwad : selected_pwads)
+            {
+                if (selected_pwad == filePath)
+                {
+                    selected = true;
+                    break;
+                }
+            }
+
+            pwads.emplace_back(filePath, selected);
         }
     }
 }
@@ -172,7 +178,7 @@ void show_pwad_list()
     ImVec2 avail = ImGui::GetContentRegionAvail();
     ImVec2 listSize = ImVec2(avail.x, avail.y - 2 * ImGui::GetFrameHeightWithSpacing() - launch_button_height); // Reserve space for one line height for the next widget, if necessary
 
-    if (ImGui::BeginListBox("##pwad_list_id", listSize))
+    if (ImGui::BeginListBox("##pwad_list_id"))
     {
         ImGui::PushStyleColor(ImGuiCol_CheckMark, ImVec4(0.0f, 0.5f, 0.0f, 1.0f)); // Green checkmark
         ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(1.0f, 1.0f, 1.0f, 0.1f)); // Semi-transparent white background
@@ -185,7 +191,10 @@ void show_pwad_list()
             // Checkbox for selection. Use the label from the pair
             if (ImGui::Checkbox(pwads[i].first.c_str(), &pwads[i].second))
             {
-                // Here you can handle the change in selection if needed.
+                config["selected_pwads"].push_back(pwads[i].first);
+            } else
+            {
+
             }
 
             ImGui::PopID(); // Don't forget to pop the ID after each element
@@ -206,8 +215,17 @@ void show_launch_button()
     if (ImGui::Button("Just Launch Doom!", ImVec2(-1, launch_button_height)))
     {
         std::string cmd = get_launch_command();
-        std::cout << cmd << std::endl;
         config["cmd"] = cmd;
+        config["selected_pwads"] = nlohmann::json::array();
+
+        for (size_t i = 0; i < pwads.size(); i++)
+        {
+            if (pwads[i].second)
+            {
+                config["selected_pwads"].push_back(pwads[i].first);
+            }
+        }
+
         system(cmd.c_str());
     }
     ImGui::PopStyleColor(3);
@@ -335,11 +353,9 @@ void show_pwad_button()
     if (pwad_file_dialog.HasSelected())
     {
         config["pwad_path"] = pwad_file_dialog.GetSelected().string();
-        std::cout << pwad_file_dialog.GetSelected().string() << std::endl;
         pwad_file_dialog.ClearSelected();
     }
 
-    // Display path in UI
     ImGui::SameLine();
     std::string path = config["pwad_path"];
 

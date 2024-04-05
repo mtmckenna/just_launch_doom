@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Basic app information -->
+    <key>CFBundleDisplayName</key>
+    <string>JustLaunchDoom</string>
+    <key>CFBundleName</key>
+    <string>Game</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.mtmckenna.just_launch_doom</string>
+    <key>CFBundleVersion</key>
+    <string>1.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>CFBundleExecutable</key>
+    <string>JustLaunchDoom</string>
+    <key>CFBundleIconFile</key>
+    <string>icon.icns</string>
+
+    <!-- Specify the principal class (main entry point of the app) -->
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
+
+    <!-- High DPI support -->
+    <key>NSHighResolutionCapable</key>
+    <true/>
+
+    <!-- Specify supported interface orientations -->
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+
+    <!-- Sandbox the application (required for App Store submission) -->
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+</dict>
+</plist>
