@@ -25,7 +25,8 @@ nlohmann::json config = {
 };
 
 const std::string APP_NAME = "just_launch_doom";
-ImGui::FileBrowser fileDialog;
+ImGui::FileBrowser gzdoom_file_dialog;
+ImGui::FileBrowser pwad_file_dialog;
 ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 SDL_Texture* color_buffer_texture;
 SDL_Window* window;
@@ -46,7 +47,8 @@ std::string get_initial_application_path()
     return "/Applications";
 }
 
-std::string get_config_file_path() {
+std::string get_config_file_path()
+{
     return get_application_support_path() + "/config.json";
 }
 
@@ -64,7 +66,7 @@ bool write_config_file(const std::string& path, nlohmann::json& config)
     return true;
 }
 
-bool load_config_file(std::string& path, nlohmann::json& config)
+bool read_config_file(std::string& path, nlohmann::json& config)
 {
     // if file exists, load it and put put data into config
     // if not, create it and write some default settings
@@ -84,7 +86,8 @@ void show_iwad_list()
     ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(0,0,0,50));
 
     std::vector<std::string> items;
-    for (int i = 0; i < 120; i++) { // Dynamically add items
+    for (int i = 0; i < 120; i++)
+    {
         items.push_back("Item " + std::to_string(i));
     }
 
@@ -96,9 +99,11 @@ void show_iwad_list()
     // Create a list box with a given size that fills the vertical space
     if (ImGui::BeginListBox("##MyDynamicListBox", listBoxSize)) {
 
-        for (int i = 0; i < items.size(); i++) {
+        for (int i = 0; i < items.size(); i++)
+        {
             const bool isSelected = (selectedItem == i);
-            if (ImGui::Selectable(items[i].c_str(), isSelected)) {
+            if (ImGui::Selectable(items[i].c_str(), isSelected))
+            {
                 selectedItem = i;
                 // If an item is selected (user clicked on an item)
                 std::cout << "Item " << i << " clicked!" << std::endl;
@@ -119,26 +124,26 @@ void show_gzdoom_button()
     // Show button
     if(ImGui::Button("Select GZDoom executable"))
     {
-        fileDialog.SetTitle("Select GZDoom executable");
+        gzdoom_file_dialog.SetTitle("Select GZDoom executable");
 
         if (config["gzdoom_path"].empty())
         {
-            fileDialog.SetPwd(get_initial_application_path());
+            gzdoom_file_dialog.SetPwd(get_initial_application_path());
         }
         else
         {
-            fileDialog.SetPwd(config["gzdoom_path"]);
+            gzdoom_file_dialog.SetPwd(config["gzdoom_path"]);
         }
 
-        fileDialog.Open();
+        gzdoom_file_dialog.Open();
     }
 
     // Update path in settings
-    fileDialog.Display();
-    if(fileDialog.HasSelected())
+    gzdoom_file_dialog.Display();
+    if(gzdoom_file_dialog.HasSelected())
     {
-        config["gzdoom_path"] = fileDialog.GetSelected().string();
-        fileDialog.ClearSelected();
+        config["gzdoom_path"] = gzdoom_file_dialog.GetSelected().string();
+        gzdoom_file_dialog.ClearSelected();
     }
 
     // Display path in UI
@@ -160,26 +165,27 @@ void show_pwad_button()
     // Show button
     if(ImGui::Button("Select PWAD"))
     {
-        fileDialog.SetTitle("Select PWAD");
+        pwad_file_dialog.SetTitle("Select PWAD");
 
         if (config["pwad_path"].empty())
         {
-            fileDialog.SetPwd("~/");
+            pwad_file_dialog.SetPwd("~/");
         }
         else
         {
-            fileDialog.SetPwd(config["pwad_path"]);
+            pwad_file_dialog.SetPwd(config["pwad_path"]);
         }
 
-        fileDialog.Open();
+        pwad_file_dialog.Open();
     }
 
     // Update path in settings
-    fileDialog.Display();
-    if(fileDialog.HasSelected())
+    pwad_file_dialog.Display();
+    if(pwad_file_dialog.HasSelected())
     {
-        config["pwad_path"] = fileDialog.GetSelected().string();
-        fileDialog.ClearSelected();
+        config["pwad_path"] = pwad_file_dialog.GetSelected().string();
+        std::cout << pwad_file_dialog.GetSelected().string() << std::endl;
+        pwad_file_dialog.ClearSelected();
     }
 
     // Display path in UI
@@ -270,7 +276,8 @@ void update()
 void setup_config_file()
 {
     std::string config_file_path = get_config_file_path();
-    bool loaded = load_config_file(config_file_path, config);
+    bool loaded = read_config_file(config_file_path, config);
+    assert(loaded == true);
 
     if (config["gzdoom_path"].empty())
     {
@@ -286,8 +293,6 @@ void setup_config_file()
     {
         config["resolution"] = {800, 600};
     }
-
-    assert(loaded == true);
 }
 
 void set_color_buffer_size()
