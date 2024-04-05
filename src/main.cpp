@@ -178,7 +178,7 @@ void show_pwad_list()
     ImVec2 avail = ImGui::GetContentRegionAvail();
     ImVec2 listSize = ImVec2(avail.x, avail.y - 2 * ImGui::GetFrameHeightWithSpacing() - launch_button_height); // Reserve space for one line height for the next widget, if necessary
 
-    if (ImGui::BeginListBox("##pwad_list_id"))
+    if (ImGui::BeginListBox("##pwad_list_id", listSize))
     {
         ImGui::PushStyleColor(ImGuiCol_CheckMark, ImVec4(0.0f, 0.5f, 0.0f, 1.0f)); // Green checkmark
         ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(1.0f, 1.0f, 1.0f, 0.1f)); // Semi-transparent white background
