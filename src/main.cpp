@@ -331,6 +331,34 @@ void show_ui()
     ImGui::PopStyleColor();
 }
 
+void set_color_buffer_size()
+{
+    const int MAX_WIDTH = 640;
+    const int MAX_HEIGHT = 480;
+    float aspect_ratio_x = (float) renderer_width / (float) renderer_height;
+    float aspect_ratio_y = (float) renderer_height / (float) renderer_width;
+
+    if (aspect_ratio_x > aspect_ratio_y)
+    {
+        color_buffer_width = MAX_WIDTH;
+        color_buffer_height = MAX_WIDTH * aspect_ratio_y;
+    } else
+    {
+        color_buffer_height = MAX_HEIGHT;
+        color_buffer_width = MAX_HEIGHT * aspect_ratio_x;
+    }
+
+}
+
+void configure_color_buffer()
+{
+    set_color_buffer_size();
+
+    color_buffer = new uint32_t[sizeof(uint32_t) * color_buffer_width * color_buffer_height];
+    color_buffer_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
+                                             color_buffer_width, color_buffer_height);
+}
+
 void update()
 {
     ImGuiIO &io = ImGui::GetIO();
@@ -352,6 +380,7 @@ void update()
                         done = true;
                     if (event.window.event == SDL_WINDOWEVENT_RESIZED)
                     {
+                        configure_color_buffer();
                         // Update the configuration with the new size
                         int newWidth = event.window.data1;
                         int newHeight = event.window.data2;
@@ -414,25 +443,6 @@ void setup_config_file()
     }
 }
 
-void set_color_buffer_size()
-{
-    const int MAX_WIDTH = 640;
-    const int MAX_HEIGHT = 480;
-    float aspect_ratio_x = (float) renderer_width / (float) renderer_height;
-    float aspect_ratio_y = (float) renderer_height / (float) renderer_width;
-
-    if (aspect_ratio_x > aspect_ratio_y)
-    {
-        color_buffer_width = MAX_WIDTH;
-        color_buffer_height = MAX_WIDTH * aspect_ratio_y;
-    } else
-    {
-        color_buffer_height = MAX_HEIGHT;
-        color_buffer_width = MAX_HEIGHT * aspect_ratio_x;
-    }
-
-}
-
 int setup()
 {
 
@@ -470,12 +480,13 @@ int setup()
 
     SDL_GetRendererOutputSize(renderer, &renderer_width, &renderer_height);
 
-    set_color_buffer_size();
+//    set_color_buffer_size();
+//
+//    color_buffer = new uint32_t[sizeof(uint32_t) * color_buffer_width * color_buffer_height];
+//    color_buffer_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
+//                                             color_buffer_width, color_buffer_height);
 
-    color_buffer = new uint32_t[sizeof(uint32_t) * color_buffer_width * color_buffer_height];
-    color_buffer_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
-                                             color_buffer_width, color_buffer_height);
-
+    configure_color_buffer();
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO &io = ImGui::GetIO();
