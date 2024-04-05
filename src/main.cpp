@@ -11,13 +11,13 @@
 
 #include "fire.h"
 
-
 #if !SDL_VERSION_ATLEAST(2,0,17)
 #error This backend requires SDL 2.0.17+ because of SDL_RenderGeometry() function
 #endif
 
-int rendererWidth, rendererHeight;
-uint32_t *colorBuffer = nullptr;
+int renderer_width, renderer_height;
+int color_buffer_width, color_buffer_height;
+uint32_t *color_buffer = nullptr;
 nlohmann::json config = {
     {"gzdoom_path", ""},
     {"resolution", {800, 600}},
@@ -27,7 +27,7 @@ nlohmann::json config = {
 const std::string APP_NAME = "just_launch_doom";
 ImGui::FileBrowser fileDialog;
 ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-SDL_Texture* colorBufferTexture;
+SDL_Texture* color_buffer_texture;
 SDL_Window* window;
 SDL_Renderer* renderer;
 
@@ -259,8 +259,8 @@ void update()
         SDL_SetRenderDrawColor(renderer, (Uint8)(clear_color.x * 255), (Uint8)(clear_color.y * 255), (Uint8)(clear_color.z * 255), (Uint8)(clear_color.w * 255));
         SDL_RenderClear(renderer);
 
-        draw_fire(colorBufferTexture, colorBuffer, rendererWidth, rendererHeight);
-        SDL_RenderCopy(renderer, colorBufferTexture, NULL, NULL);
+        draw_fire(color_buffer_texture, color_buffer, color_buffer_width, color_buffer_height);
+        SDL_RenderCopy(renderer, color_buffer_texture, NULL, NULL);
 
         ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
         SDL_RenderPresent(renderer);
@@ -290,6 +290,26 @@ void setup_config_file()
     assert(loaded == true);
 }
 
+void set_color_buffer_size()
+{
+    const int MAX_WIDTH = 640;
+    const int MAX_HEIGHT = 480;
+    float aspect_ratio_x = (float)renderer_width / (float)renderer_height;
+    float aspect_ratio_y = (float)renderer_height / (float)renderer_width;
+
+    if (aspect_ratio_x > aspect_ratio_y)
+    {
+        color_buffer_width = MAX_WIDTH;
+        color_buffer_height = MAX_WIDTH * aspect_ratio_y;
+    }
+    else
+    {
+        color_buffer_height = MAX_HEIGHT;
+        color_buffer_width = MAX_HEIGHT * aspect_ratio_x;
+    }
+
+}
+
 int setup()
 {
 
@@ -306,7 +326,7 @@ int setup()
 #endif
 
     // Create window with SDL_Renderer graphics context
-    SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+    auto window_flags = (SDL_WindowFlags)(SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 
     window = SDL_CreateWindow("Just Launch Doom", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                               config["resolution"][0], config["resolution"][1], window_flags);
@@ -325,12 +345,13 @@ int setup()
         return 0;
     }
 
-    SDL_GetRendererOutputSize(renderer, &rendererWidth, &rendererHeight);
-    colorBuffer = new uint32_t[sizeof(uint32_t) * rendererWidth * rendererHeight];
+    SDL_GetRendererOutputSize(renderer, &renderer_width, &renderer_height);
 
-    colorBufferTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, rendererWidth, rendererHeight);
+    set_color_buffer_size();
 
-    // Setup Dear ImGui context
+    color_buffer = new uint32_t[sizeof(uint32_t) * color_buffer_width * color_buffer_height];
+    color_buffer_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, color_buffer_width, color_buffer_height);
+
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
@@ -342,9 +363,11 @@ int setup()
     ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
     ImGui_ImplSDLRenderer2_Init(renderer);
 
-    io.FontGlobalScale = 1.5;
+    io.FontGlobalScale = 1.0;
 
     setup_config_file();
+
+    return 0;
 }
 
 void clean_up()

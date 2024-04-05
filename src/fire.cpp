@@ -1,14 +1,14 @@
-//
-// Created by Matt McKenna on 3/19/24.
-//
-
 #include <SDL.h>
-#include <cstdint>
 #include <vector>
+#include <random>
 
 #include "fire.h"
 
 std::vector<int> fire_pixels;
+std::uniform_int_distribution<int> distrib(0, 3);
+std::random_device rd;
+std::default_random_engine gen(rd());
+
 const uint32_t COLORS[] = {
         0xFF070707, 0xFF1F0707, 0xFF2F0F07, 0xFF470F07, 0xFF571707,
         0xFF671F07, 0xFF771F07, 0xFF8F2707, 0xFF9F2F07, 0xFFAF3F07,
@@ -22,41 +22,31 @@ const uint32_t COLORS[] = {
 
 const int COLOR_SIZE = sizeof(COLORS) / sizeof(uint32_t);
 
-void spread_fire(SDL_Texture* texture, uint32_t *colorBuffer, int windowWidth, int from)
+// https://github.com/fabiensanglard/DoomFirePSX/blob/master/flames.html
+void spread_fire(int window_width, int from)
 {
     int pixelValue = fire_pixels[from];
-    int to = from - windowWidth;
-
-    if (pixelValue != 0)
+    if (pixelValue == 0)
     {
-        int rand = std::rand() % 4;
-        bool change = std::rand() % 1 == 0;
-        to = from - windowWidth - rand;
-
-        if (change)
-        {
-            pixelValue =  fire_pixels[from] - (rand & 1);
-        }
-
+        fire_pixels[from - window_width] = 0;
     }
-
-    if (to >= 0 && to < fire_pixels.size())
+    else
     {
-        fire_pixels[to] = pixelValue;
+        int rand = distrib(gen);
+        int to = from - rand + 1;
+        fire_pixels[to - window_width] = pixelValue - (rand & 1);
     }
 }
 
-
-void draw_fire(SDL_Texture* texture, uint32_t *colorBuffer, int windowWidth, int window_height)
+void draw_fire(SDL_Texture* texture, uint32_t *color_buffer, int window_width, int window_height)
 {
-    const int fire_height = 500;
 
     if (fire_pixels.empty())
     {
-        fire_pixels.resize(windowWidth * window_height, 0 );
-        for (int i = 0; i < windowWidth * window_height; i++)
+        fire_pixels.resize(window_width * window_height, 0 );
+        for (int i = 0; i < window_width * window_height; i++)
         {
-            if (i > windowWidth * (window_height - 1) - windowWidth)
+            if (i > window_width * (window_height - 1) - window_width)
             {
                 fire_pixels[i] = COLOR_SIZE - 1;
             }
@@ -64,38 +54,15 @@ void draw_fire(SDL_Texture* texture, uint32_t *colorBuffer, int windowWidth, int
         }
     }
 
-    for (int x = 0; x < windowWidth; x++)
+    for (int x = 0; x < window_width; x++)
     {
-        for (int y = window_height - 1; y > window_height - fire_height; y--)
+        for (int y = window_height - 1; y > 0; y--)
         {
-            const int index = x + (windowWidth * y);
-            spread_fire(texture, colorBuffer, windowWidth, index);
-            colorBuffer[index] = COLORS[fire_pixels[index]];
+            const int index = x + (window_width * y);
+            spread_fire(window_width, index);
+            color_buffer[index] = COLORS[fire_pixels[index]];
         }
     }
 
-    SDL_UpdateTexture(texture, nullptr, colorBuffer, (int) (windowWidth * sizeof(uint32_t)));
-}
-
-void drawSquareInTexture(SDL_Texture* texture, uint32_t *colorBuffer, int squareSize, Uint32 squareColor, int windowWidth) {
-
-    // Draw a square at the top-left corner
-    for (int y = 0; y < squareSize; ++y) {
-        for (int x = 0; x < squareSize; ++x) {
-            colorBuffer[y * windowWidth + x] = squareColor;
-        }
-    }
-
-    SDL_UpdateTexture(texture, nullptr, colorBuffer, (int) (windowWidth * sizeof(uint32_t)));
-}
-
-void clearTexture(SDL_Texture* texture, uint32_t* colorBuffer, int screenWidth, int screenHeight, Uint32 clearColor) {
-    // Fill the entire texture with the clear color
-    for (int y = 0; y < screenHeight; ++y) {
-        for (int x = 0; x < screenWidth; ++x) {
-            colorBuffer[y * screenWidth + x] = clearColor;
-        }
-    }
-
-    SDL_UpdateTexture(texture, nullptr, colorBuffer, (int) (screenWidth * sizeof(uint32_t)));
+    SDL_UpdateTexture(texture, nullptr, color_buffer, (int) (window_width * sizeof(uint32_t)));
 }
