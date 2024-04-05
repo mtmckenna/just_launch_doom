@@ -32,6 +32,26 @@ SDL_Texture* color_buffer_texture;
 SDL_Window* window;
 SDL_Renderer* renderer;
 
+static void help_marker(const char* desc)
+{
+//    ImGui::TextDisabled("(?)");
+    if (ImGui::BeginItemTooltip())
+    {
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+        ImGui::TextUnformatted(desc);
+        ImGui::PopTextWrapPos();
+        ImGui::EndTooltip();
+    }
+}
+
+void set_cursor_hand()
+{
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+    }
+}
+
 std::string get_application_support_path()
 {
     const char* homeDir = getenv("HOME");
@@ -81,9 +101,9 @@ bool read_config_file(std::string& path, nlohmann::json& config)
     return true;
 }
 
-void show_iwad_list()
+void show_pwad_list()
 {
-    ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(0,0,0,50));
+    ImGui::SeparatorText("Select PWAD(s)");
 
     std::vector<std::string> items;
     for (int i = 0; i < 120; i++)
@@ -116,7 +136,6 @@ void show_iwad_list()
         ImGui::EndListBox();
     }
 
-    ImGui::PopStyleColor();
 }
 
 void show_gzdoom_button()
@@ -137,6 +156,8 @@ void show_gzdoom_button()
 
         gzdoom_file_dialog.Open();
     }
+    help_marker("e.g. /Applications/GZDoom.app/Contents/MacOS/gzdoom");
+    set_cursor_hand();
 
     // Update path in settings
     gzdoom_file_dialog.Display();
@@ -160,12 +181,13 @@ void show_gzdoom_button()
     }
 }
 
-void show_pwad_button()
+void show_iwad_button()
 {
     // Show button
-    if(ImGui::Button("Select PWAD"))
+
+    if(ImGui::Button("Select IWAD"))
     {
-        pwad_file_dialog.SetTitle("Select PWAD");
+        pwad_file_dialog.SetTitle("Select IWAD");
 
         if (config["pwad_path"].empty())
         {
@@ -177,6 +199,11 @@ void show_pwad_button()
         }
 
         pwad_file_dialog.Open();
+    }
+    help_marker("e.g. doom.wad, doom2.wad, heretic.wad, hexen.wad, strife1.wad, etc.");
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
     }
 
     // Update path in settings
@@ -252,8 +279,8 @@ void update()
         if(ImGui::Begin("fullscreen window", nullptr, window_flags))
         {
             show_gzdoom_button();
-            show_pwad_button();
-            show_iwad_list();
+            show_iwad_button();
+            show_pwad_list();
 
         }
 
@@ -372,11 +399,14 @@ int setup()
 
     setup_config_file();
 
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(0,0,0,50));
+
     return 0;
 }
 
 void clean_up()
 {
+    ImGui::PopStyleColor();
     bool written = write_config_file(get_config_file_path(), config);
     assert(written == true);
 
