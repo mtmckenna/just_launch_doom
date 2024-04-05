@@ -20,12 +20,16 @@ int renderer_width, renderer_height;
 int color_buffer_width, color_buffer_height;
 int launch_button_height = 35;
 char command_buf[1024] = "THIS IS THE COMMAND";
+//std::vector<bool> pwads(120, false);
+std::vector<std::pair<std::string, bool>> pwads;
+
 uint32_t *color_buffer = nullptr;
 nlohmann::json config = {
-        {"gzdoom_path", ""},
+        {"gzdoom_filepath", ""},
         {"resolution",  {800, 600}},
         {"pwad_path",   ""},
-        {"iwad_path",   ""}
+        {"iwad_filepath",   ""},
+        {"selected_pwads", nlohmann::json::array()}
 };
 
 const std::string APP_NAME = "just_launch_doom";
@@ -78,10 +82,26 @@ std::string get_config_file_path()
 
 std::string get_launch_command()
 {
-    std::string command = config["gzdoom_path"];
-    std::string iwad = config["iwad_path"];
+    std::string command = config["gzdoom_filepath"];
+    std::string iwad = config["iwad_filepath"];
 //        std::string pwad = " -file " + config["pwad_path"];
-    std::string cmd = "\"" + command + "\"" + " " + "-iwad " + "\"" + iwad + "\""; //+ pwad;
+    std::string pwad = "";
+
+    // go through pwads and add them to the command
+    for (size_t i = 0; i < pwads.size(); i++)
+    {
+        if (pwads[i].second)
+        {
+            pwad += "\"" + pwads[i].first + "\" ";
+        }
+    }
+
+    if (!pwad.empty())
+    {
+        pwad = " -file " + pwad;
+    }
+
+    std::string cmd = "\"" + command + "\"" + " " + "-iwad " + "\"" + iwad + "\"" + " " + pwad;
     return cmd;
 }
 
@@ -118,57 +138,79 @@ bool read_config_file(std::string &path, nlohmann::json &config)
     return true;
 }
 
+
+void populate_pwad_list() {
+    // Clear the existing vector
+    pwads.clear();
+
+    std::string pwadPath = config["pwad_path"];
+
+    // Check if the directory exists and is accessible
+    if (!std::filesystem::exists(pwadPath) || !std::filesystem::is_directory(pwadPath)) {
+        // Handle the error appropriately
+        std::cerr << "The specified PWAD path does not exist or is not a directory." << std::endl;
+        return;
+    }
+
+    // Iterate over the directory
+    for (const auto& entry : std::filesystem::directory_iterator(pwadPath)) {
+        // Check if it's a regular file
+        if (entry.is_regular_file()) {
+            // You can add more checks here for file extension if necessary
+            std::string filePath = entry.path().string();
+
+            // Add the file path and set the selection flag to false
+            pwads.emplace_back(filePath, false);
+        }
+    }
+}
+
 void show_pwad_list()
 {
     ImGui::SeparatorText("Select PWAD(s)");
 
-    std::vector<std::string> items;
-    for (int i = 0; i < 120; i++)
-    {
-        items.push_back("Item " + std::to_string(i));
-    }
-
-    static int selectedItem = -1; // Index of the selected item, -1 means no selection
-
     ImVec2 avail = ImGui::GetContentRegionAvail();
-    ImVec2 listSize = ImVec2(avail.x, avail.y - 3 * ImGui::GetFrameHeightWithSpacing() - launch_button_height); // Reserve space for one line height for the next widget, if necessary
+    ImVec2 listSize = ImVec2(avail.x, avail.y - 2 * ImGui::GetFrameHeightWithSpacing() - launch_button_height); // Reserve space for one line height for the next widget, if necessary
 
-    // Create a list box with a given size that fills the vertical space
     if (ImGui::BeginListBox("##pwad_list_id", listSize))
     {
-        for (int i = 0; i < items.size(); i++)
+        ImGui::PushStyleColor(ImGuiCol_CheckMark, ImVec4(0.0f, 0.5f, 0.0f, 1.0f)); // Green checkmark
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(1.0f, 1.0f, 1.0f, 0.1f)); // Semi-transparent white background
+
+        for (size_t i = 0; i < pwads.size(); i++)
         {
-            const bool isSelected = (selectedItem == i);
-            if (ImGui::Selectable(items[i].c_str(), isSelected))
+            // Using PushID is important for ensuring unique IDs within a loop
+            ImGui::PushID(i);
+
+            // Checkbox for selection. Use the label from the pair
+            if (ImGui::Checkbox(pwads[i].first.c_str(), &pwads[i].second))
             {
-                selectedItem = i;
-                // If an item is selected (user clicked on an item)
-                std::cout << "Item " << i << " clicked!" << std::endl;
+                // Here you can handle the change in selection if needed.
             }
 
-            // Set the initial focus when opening the list box
-            if (isSelected)
-                ImGui::SetItemDefaultFocus();
+            ImGui::PopID(); // Don't forget to pop the ID after each element
         }
+
+        ImGui::PopStyleColor(2); // Pop both colors at once
         ImGui::EndListBox();
     }
-
 }
 
 void show_launch_button()
 {
-    // add some vertical padding
-    ImGui::Dummy(ImVec2(0.0f, 10.0f));
     ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f,0.0,0.0, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f,0.5,0.0, .75f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.5f, 0.0f, 0.0f, .75f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1.0f, 0.0f, 0.0f, .75f)); // Darker
 
     if (ImGui::Button("Just Launch Doom!", ImVec2(-1, launch_button_height)))
     {
         std::string cmd = get_launch_command();
         std::cout << cmd << std::endl;
+        config["cmd"] = cmd;
         system(cmd.c_str());
     }
-    ImGui::PopStyleColor();
+    ImGui::PopStyleColor(3);
     set_cursor_hand();
 }
 
@@ -179,12 +221,14 @@ void show_gzdoom_button()
     {
         gzdoom_file_dialog.SetTitle("Select GZDoom executable");
 
-        if (config["gzdoom_path"].empty())
+        std::string gzdoom_filepath = config["gzdoom_filepath"];
+
+        if (gzdoom_filepath.empty())
         {
             gzdoom_file_dialog.SetPwd(get_initial_application_path());
         } else
         {
-            gzdoom_file_dialog.SetPwd(config["gzdoom_path"]);
+            gzdoom_file_dialog.SetPwd(gzdoom_filepath);
         }
 
         gzdoom_file_dialog.Open();
@@ -196,13 +240,13 @@ void show_gzdoom_button()
     gzdoom_file_dialog.Display();
     if (gzdoom_file_dialog.HasSelected())
     {
-        config["gzdoom_path"] = gzdoom_file_dialog.GetSelected().string();
+        config["gzdoom_filepath"] = gzdoom_file_dialog.GetSelected().string();
         gzdoom_file_dialog.ClearSelected();
     }
 
     // Display path in UI
     ImGui::SameLine();
-    std::string path = config["gzdoom_path"];
+    std::string path = config["gzdoom_filepath"];
 
     if (path.empty())
     {
@@ -217,17 +261,19 @@ void show_iwad_button()
 {
     // Show button
 
+    std::string filepath_string = config["iwad_filepath"];
+
     if (ImGui::Button("Select IWAD"))
     {
         iwad_file_dialog.SetTitle("Select IWAD");
 
-        if (config["pwad_path"].empty())
+        if (filepath_string.empty())
         {
             iwad_file_dialog.SetPwd("~/");
         } else
         {
-            std::filesystem::path filePath(config["iwad_path"]);
-            std::filesystem::path directoryPath = filePath.parent_path();
+            std::filesystem::path file_path(filepath_string);
+            std::filesystem::path directoryPath = file_path.parent_path();
             iwad_file_dialog.SetPwd(directoryPath.c_str());
         }
 
@@ -243,14 +289,13 @@ void show_iwad_button()
     iwad_file_dialog.Display();
     if (iwad_file_dialog.HasSelected())
     {
-        config["iwad_path"] = iwad_file_dialog.GetSelected().string();
-        std::cout << iwad_file_dialog.GetSelected().string() << std::endl;
+        config["iwad_filepath"] = iwad_file_dialog.GetSelected().string();
         iwad_file_dialog.ClearSelected();
     }
 
     // Display path in UI
     ImGui::SameLine();
-    std::string path = config["iwad_path"];
+    std::string path = config["iwad_filepath"];
 
     if (path.empty())
     {
@@ -309,9 +354,11 @@ void show_pwad_button()
 
 void show_command()
 {
-//    std::string gzdoom_path = config["gzdoom_path"].get<std::string>();
     snprintf(command_buf, IM_ARRAYSIZE(command_buf), "%s", get_launch_command().c_str());
-    ImGui::SeparatorText("Command to run Doom");
+    ImGui::SeparatorText("Command to run");
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.0f, 0.0f, 0.0f, 0.75f));
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+
     if (ImGui::InputText("##command_id", command_buf, IM_ARRAYSIZE(command_buf)))
     {
         // This code gets executed if the input text changes.
@@ -319,6 +366,7 @@ void show_command()
         std::string text = command_buf; // Now you have the text in an std::string if you need to use it elsewhere
     }
 
+    ImGui::PopStyleColor();
 }
 
 void show_ui()
@@ -437,14 +485,19 @@ void setup_config_file()
     bool loaded = read_config_file(config_file_path, config);
     assert(loaded == true);
 
-    if (config["gzdoom_path"].empty())
+    if (config["gzdoom_filepath"].empty())
     {
-        config["gzdoom_path"] = "";
+        config["gzdoom_filepath"] = "";
     }
 
-    if (config["pwad_path"].empty())
+    if (config["iwad_path"].empty())
     {
-        config["pwad_path"] = "";
+        config["iwad_path"] = "";
+    }
+
+    if (config["selected_pwads"].empty())
+    {
+        config["selected_pwads"] = nlohmann::json::array();
     }
 
     if (config["resolution"].empty())
@@ -471,7 +524,7 @@ int setup()
     // Create window with SDL_Renderer graphics context
     auto window_flags = (SDL_WindowFlags) (SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 
-    window = SDL_CreateWindow("Launch Doom!", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+    window = SDL_CreateWindow("Just Launch Doom!", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                               config["resolution"][0], config["resolution"][1], window_flags);
 
     if (window == nullptr)
@@ -490,12 +543,6 @@ int setup()
 
     SDL_GetRendererOutputSize(renderer, &renderer_width, &renderer_height);
 
-//    set_color_buffer_size();
-//
-//    color_buffer = new uint32_t[sizeof(uint32_t) * color_buffer_width * color_buffer_height];
-//    color_buffer_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
-//                                             color_buffer_width, color_buffer_height);
-
     configure_color_buffer();
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -511,7 +558,7 @@ int setup()
     io.FontGlobalScale = 1.0;
 
     setup_config_file();
-
+    populate_pwad_list();
 
     return 0;
 }
