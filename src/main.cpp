@@ -237,9 +237,9 @@ void show_launch_button()
 void show_gzdoom_button()
 {
     // Show button
-    if (ImGui::Button("Select GZDoom executable"))
+    if (ImGui::Button("Select Doom executable"))
     {
-        gzdoom_file_dialog.SetTitle("Select GZDoom executable");
+        gzdoom_file_dialog.SetTitle("Select Doom executable");
 
         std::string gzdoom_filepath = config["gzdoom_filepath"];
 
@@ -253,7 +253,7 @@ void show_gzdoom_button()
 
         gzdoom_file_dialog.Open();
     }
-    help_marker("e.g. /Applications/GZDoom.app/Contents/MacOS/gzdoom");
+    help_marker("e.g. gzdoom, chocolate-doom, etc.");
     set_cursor_hand();
 
     // Update path in settings
@@ -270,7 +270,7 @@ void show_gzdoom_button()
 
     if (path.empty())
     {
-        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "No GZDoom executable selected");
+        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "No Doom executable selected");
     } else
     {
         ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "%s", path.c_str());
