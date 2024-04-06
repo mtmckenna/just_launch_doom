@@ -36,6 +36,12 @@ const std::string APP_NAME = "just_launch_doom";
 ImGui::FileBrowser gzdoom_file_dialog;
 ImGui::FileBrowser iwad_file_dialog;
 ImGui::FileBrowser pwad_file_dialog(ImGuiFileBrowserFlags_SelectDirectory);
+
+ImVec4 button_color = ImVec4(0.85f, 0.46f, 0.14f, 1.0f);
+ImVec4 button_hover_color = ImVec4(0.95f, 0.56f, 0.24f, 1.0f);
+ImVec4 button_active_color = ImVec4(0.75f, 0.36f, 0.04f, 1.0f);
+ImVec4 dialog_title_color = ImVec4(0.0f, 0.0f, 0.0f, 1.0f);
+
 ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 SDL_Texture *color_buffer_texture;
 SDL_Window *window;
@@ -84,7 +90,6 @@ std::string get_launch_command()
 {
     std::string command = config["gzdoom_filepath"];
     std::string iwad = config["iwad_filepath"];
-//        std::string pwad = " -file " + config["pwad_path"];
     std::string pwad = "";
 
     // go through pwads and add them to the command
@@ -178,6 +183,7 @@ void show_pwad_list()
     ImVec2 avail = ImGui::GetContentRegionAvail();
     ImVec2 listSize = ImVec2(avail.x, avail.y - 2 * ImGui::GetFrameHeightWithSpacing() - launch_button_height); // Reserve space for one line height for the next widget, if necessary
 
+
     if (ImGui::BeginListBox("##pwad_list_id", listSize))
     {
         ImGui::PushStyleColor(ImGuiCol_CheckMark, ImVec4(0.0f, 0.5f, 0.0f, 1.0f)); // Green checkmark
@@ -198,6 +204,7 @@ void show_pwad_list()
             {
                 config["selected_pwads"].push_back(pwads[i].first);
             }
+            set_cursor_hand();
 
             ImGui::PopID(); // Don't forget to pop the ID after each element
         }
@@ -205,14 +212,15 @@ void show_pwad_list()
         ImGui::PopStyleColor(2); // Pop both colors at once
         ImGui::EndListBox();
     }
+
 }
 
 void show_launch_button()
 {
     ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f,0.5,0.0, .75f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.5f, 0.0f, 0.0f, .75f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1.0f, 0.0f, 0.0f, .75f)); // Darker
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.5f, 0.0f, 0.0f, .75f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.0f, 0.0f, .75f)); // Darker
 
     if (ImGui::Button("Just Launch Doom!", ImVec2(-1, launch_button_height)))
     {
@@ -236,7 +244,12 @@ void show_launch_button()
 
 void show_gzdoom_button()
 {
-    // Show button
+    ImGui::PushStyleColor(ImGuiCol_Button, button_color);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, button_hover_color);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, button_active_color);
+    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, button_color);
+    ;
+
     if (ImGui::Button("Select Doom executable"))
     {
         gzdoom_file_dialog.SetTitle("Select Doom executable");
@@ -256,13 +269,14 @@ void show_gzdoom_button()
     help_marker("e.g. gzdoom, chocolate-doom, etc.");
     set_cursor_hand();
 
-    // Update path in settings
+    ImGui::PushStyleColor(ImGuiCol_TitleBgActive, dialog_title_color);
     gzdoom_file_dialog.Display();
     if (gzdoom_file_dialog.HasSelected())
     {
         config["gzdoom_filepath"] = gzdoom_file_dialog.GetSelected().string();
         gzdoom_file_dialog.ClearSelected();
     }
+    ImGui::PopStyleColor(1);
 
     // Display path in UI
     ImGui::SameLine();
@@ -275,11 +289,16 @@ void show_gzdoom_button()
     {
         ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "%s", path.c_str());
     }
+
+    ImGui::PopStyleColor(4);
 }
 
 void show_iwad_button()
 {
-    // Show button
+    ImGui::PushStyleColor(ImGuiCol_Button, button_color);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, button_hover_color);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, button_active_color);
+    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, button_color);
 
     std::string filepath_string = config["iwad_filepath"];
 
@@ -300,18 +319,16 @@ void show_iwad_button()
         iwad_file_dialog.Open();
     }
     help_marker("e.g. doom.wad, doom2.wad, heretic.wad, hexen.wad, strife1.wad, etc.");
-    if (ImGui::IsItemHovered())
-    {
-        ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
-    }
+    set_cursor_hand();
 
-    // Update path in settings
+    ImGui::PushStyleColor(ImGuiCol_TitleBgActive, dialog_title_color);
     iwad_file_dialog.Display();
     if (iwad_file_dialog.HasSelected())
     {
         config["iwad_filepath"] = iwad_file_dialog.GetSelected().string();
         iwad_file_dialog.ClearSelected();
     }
+    ImGui::PopStyleColor(1);
 
     // Display path in UI
     ImGui::SameLine();
@@ -324,11 +341,16 @@ void show_iwad_button()
     {
         ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "%s", path.c_str());
     }
+
+    ImGui::PopStyleColor(4);
 }
 
 void show_pwad_button()
 {
-    // Show button
+    ImGui::PushStyleColor(ImGuiCol_Button, button_color);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, button_hover_color);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, button_active_color);
+    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, button_color);
 
     if (ImGui::Button("Select PWAD folder"))
     {
@@ -345,18 +367,18 @@ void show_pwad_button()
         pwad_file_dialog.Open();
     }
     help_marker("e.g. ~/doom_wads/");
-    if (ImGui::IsItemHovered())
-    {
-        ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
-    }
+    set_cursor_hand();
 
-    // Update path in settings
+    ImGui::PushStyleColor(ImGuiCol_TitleBgActive, dialog_title_color);
+
     pwad_file_dialog.Display();
     if (pwad_file_dialog.HasSelected())
     {
         config["pwad_path"] = pwad_file_dialog.GetSelected().string();
         pwad_file_dialog.ClearSelected();
     }
+
+    ImGui::PopStyleColor(1);
 
     ImGui::SameLine();
     std::string path = config["pwad_path"];
@@ -368,6 +390,8 @@ void show_pwad_button()
     {
         ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "%s", path.c_str());
     }
+
+    ImGui::PopStyleColor(4);
 }
 
 void show_command()
