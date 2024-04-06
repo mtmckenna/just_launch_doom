@@ -188,13 +188,15 @@ void show_pwad_list()
             // Using PushID is important for ensuring unique IDs within a loop
             ImGui::PushID(i);
 
+            std::string pwad_file_path = pwads[i].first;
+
+            std::filesystem::path path_obj(pwad_file_path);
+            std::string filename = path_obj.filename().string();
+
             // Checkbox for selection. Use the label from the pair
-            if (ImGui::Checkbox(pwads[i].first.c_str(), &pwads[i].second))
+            if (ImGui::Checkbox(filename.c_str(), &pwads[i].second))
             {
                 config["selected_pwads"].push_back(pwads[i].first);
-            } else
-            {
-
             }
 
             ImGui::PopID(); // Don't forget to pop the ID after each element
