@@ -8,10 +8,6 @@ Super basic Doom launcher
 - Select PWAD(s) to run
 - Just Launch Doom!
 
-## Download
-
-[Download for Mac](download_link_for_just_launch_doom_mac)
-
 ## Website
 
 [Just Launch Doom website](https://mtmckenna.github.io/just_launch_doom/)
