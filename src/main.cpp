@@ -16,6 +16,8 @@
 #error This backend requires SDL 2.0.17+ because of SDL_RenderGeometry() function
 #endif
 
+#define VERSION "0.1.0"
+
 int renderer_width, renderer_height;
 int color_buffer_width, color_buffer_height;
 int launch_button_height = 35;
@@ -566,7 +568,11 @@ int setup()
     // Create window with SDL_Renderer graphics context
     auto window_flags = (SDL_WindowFlags) (SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 
-    window = SDL_CreateWindow("Just Launch Doom!", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+    std::string title;
+    title += "Just Launch Doom v";
+    title += VERSION;
+
+    window = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                               config["resolution"][0], config["resolution"][1], window_flags);
 
     if (window == nullptr)
