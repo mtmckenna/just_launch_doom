@@ -14,7 +14,9 @@ Super basic Doom launcher
 
 ## Screenshot
 
-<img width="912" alt="Screenshot 2024-04-06 at 12 59 04 PM" src="https://github.com/mtmckenna/just_launch_doom/assets/361430/79e51e80-e2fe-4194-9632-46fc64ec3830">
+
+![just-launch-doom-01](https://github.com/mtmckenna/just_launch_doom/assets/361430/8a8638fb-5a5e-46a8-a644-d1a38031e74f)
+
 
 ## Third-party libraries
 
