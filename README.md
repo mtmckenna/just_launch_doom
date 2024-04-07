@@ -20,6 +20,12 @@ Super basic Doom launcher
 
 <img width="912" alt="Screenshot 2024-04-06 at 12 59 04 PM" src="https://github.com/mtmckenna/just_launch_doom/assets/361430/79e51e80-e2fe-4194-9632-46fc64ec3830">
 
+## Third-party libraries
+
+- [SDL2](https://github.com/libsdl-org/SDL)
+- [ImGui](https://github.com/ocornut/imgui)
+- [imgui-filebrowser](https://github.com/AirGuanZ/imgui-filebrowser)
+- [nlohmann/json](https://github.com/nlohmann/json)
 
 ## Contact
 
