@@ -59,7 +59,7 @@ $(BUILD_DIR)/win/%.o: $(SRC_DIR)/%.cpp
 	$(CXX_WIN) $(CXXFLAGS_WIN) -c $< -o $@
 
 windows: $(OBJECTS_WIN) $(ICON_OBJ)
-	$(CXX_WIN) -o $(BUILD_DIR)/$(EXECUTABLE).exe $^ $(LDFLAGS_WIN)
+	$(CXX_WIN) -o $(BUILD_DIR)/JustLaunchDoom.exe $^ $(LDFLAGS_WIN)
 
 $(BUILD_DIR)/$(EXECUTABLE)_arm64: $(OBJECTS_ARM64)
 	$(CXX) -arch arm64 $(LDFLAGS_ARM) $^ -o $@
