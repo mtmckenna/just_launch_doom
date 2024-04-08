@@ -1,60 +1,49 @@
 CXX := clang++
-WIN_CXX := x86_64-w64-mingw32-g++
-
+CXX_WIN := /mingw64/bin/g++.exe
 SRC_DIR := ./src
 SRC_DIR_WIN := src
 BUILD_DIR := ./build
 BUILD_ASSETS_DIR := ./build_assets
 DEBUGFLAGS := -g -O0
+SDL_CFLAGS := $(shell sdl2-config --cflags)
+CXXFLAGS := -std=c++17 $(SDL_CFLAGS) -I/usr/local/include -I./ $(DEBUGFLAGS)
+CXXFLAGS_WIN := -std=c++17 $(SDL_CFLAGS) -I./ $(DEBUGFLAGS)
+UNAME_S := $(shell uname -s)
+EXECUTABLE := just_launch_doom
 
-SDL_DIR_WIN := C:/libs/SDL2-2.30.2/x86_64-w64-mingw32
-SDL_LIB_DIR_WIN := $(SDL_DIR_WIN)/lib
-SDL_INCLUDE_DIR := $(SDL_DIR_WIN)/include
+ifneq (,$(findstring Darwin,$(UNAME_S)))
+SDL_STATIC_LIBS_ARM := $(shell sdl2-config --static-libs)
+SDL_STATIC_LIBS_X86 := $(shell /usr/local/bin/sdl2-config --static-libs)
+LDFLAGS_ARM := $(SDL_STATIC_LIBS_ARM)
+LDFLAGS_X86 := $(SDL_STATIC_LIBS_X86)
+endif
 
-$(info SDL_LIB_DIR_WIN:)
-$(info $(SDL_LIB_DIR_WIN))
+ifneq (,$(findstring MINGW,$(UNAME_S)))
+SDL_LDFLAGS_WIN := $(shell sdl2-config --static-libs)
+LDFLAGS_WIN := -static $(SDL_LDFLAGS_WIN) -mwin32
+endif
 
-WIN_CXXFLAGS := -std=c++17 -I$(SDL_INCLUDE_DIR)/SDL2 $(DEBUGFLAGS) -DSDL_MAIN_HANDLED -DSDL_STATIC
-
-#CXXFLAGS := -std=c++17 $(shell sdl2-config --cflags) -I/usr/local/include -I./ $(DEBUGFLAGS)
-#SDL_STATIC_LIBS_ARM := $(shell sdl2-config --static-libs)
-#SDL_STATIC_LIBS_X86 := $(shell /usr/local/bin/sdl2-config --static-libs)
-#LDFLAGS_ARM := $(SDL_STATIC_LIBS_ARM)
-#LDFLAGS_X86 := $(SDL_STATIC_LIBS_X86)
-#WIN_SDL2_LIB_FILEPATH := C:\libs\SDL2-2.30.2\x86_64-w64-mingw32\lib\libSDL2.dll.a
-#WIN_LDFLAGS := -L$(SDL_LIB_DIR_WIN) -static -lmingw32 -lSDL2main -lSDL2 -static-libgcc -static-libstdc++ -mwindows
-WIN_LDFLAGS := -L$(SDL_LIB_DIR_WIN) -static -lmingw32 -lSDL2main -lSDL2 -mwindows -lwinmm -limm32 -lversion -lole32 -loleaut32 -lsetupapi -static-libgcc -static-libstdc++
-
-
-$(info LDFLAGS:)
-$(info $(WIN_LDFLAGS))
-
+# Windows icons
 RC := windres
 ICON := $(BUILD_ASSETS_DIR)/win/app.rc
 ICON_OBJ := $(BUILD_DIR)/app.res
 
-ifeq ($(OS),Windows_NT)
-SOURCES := $(shell powershell.exe -Command "Get-ChildItem -Recurse -File -Filter *.cpp . | Resolve-Path -Relative | ForEach-Object { $$_ -replace '\\', '/' }")
-else
 SOURCES := $(shell find $(SRC_DIR) -name '*.cpp')
-endif
-
 OBJECTS_ARM64 :=  $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/arm64/%.o,$(SOURCES))
 OBJECTS_X86_64 := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/x86_64/%.o,$(SOURCES))
 OBJECTS_WIN :=    $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/win/%.o,$(SOURCES))
 
-EXECUTABLE := just_launch_doom
 
 .PHONY: all clean mac windows
 
 all: mac
 
 $(BUILD_DIR)/win/%.o: $(SRC_DIR)/%.cpp
-	@powershell -Command "New-Item -Path $(dir $@) -ItemType Directory -Force | Out-Null"
-	$(WIN_CXX) $(WIN_CXXFLAGS) -c $< -o $@ $(BUILD_ASSETS_DIR)/win/app.res
+	mkdir -p $(dir $@)
+	$(CXX_WIN) $(CXXFLAGS_WIN) -c $< -o $@ $(BUILD_ASSETS_DIR)/win/app.res
 
 $(ICON_OBJ): $(ICON)
-	@powershell -Command "New-Item -Path $(dir $@) -ItemType Directory -Force | Out-Null"
+	mkdir -p $(dir $@)
 	$(RC) -I$(SRC_DIR) -O coff -o $@ $<
 
 $(BUILD_DIR)/arm64/%.o: $(SRC_DIR)/%.cpp
@@ -66,11 +55,11 @@ $(BUILD_DIR)/x86_64/%.o: $(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@ -target x86_64-apple-macos10.15
 
 $(BUILD_DIR)/win/%.o: $(SRC_DIR)/%.cpp
-	@powershell -Command "New-Item -Path $(dir $@) -ItemType Directory -Force | Out-Null"
-	$(WIN_CXX) $(WIN_CXXFLAGS) -c $< -o $@
+	mkdir -p $(dir $@)
+	$(CXX_WIN) $(CXXFLAGS_WIN) -c $< -o $@
 
 windows: $(OBJECTS_WIN) $(ICON_OBJ)
-	$(WIN_CXX) -o $(BUILD_DIR)/$(EXECUTABLE).exe $^ $(WIN_LDFLAGS)
+	$(CXX_WIN) -o $(BUILD_DIR)/$(EXECUTABLE).exe $^ $(LDFLAGS_WIN)
 
 $(BUILD_DIR)/$(EXECUTABLE)_arm64: $(OBJECTS_ARM64)
 	$(CXX) -arch arm64 $(LDFLAGS_ARM) $^ -o $@
@@ -92,12 +81,4 @@ mac: $(BUILD_DIR)/$(EXECUTABLE)_universal
 	cp $(BUILD_ASSETS_DIR)/mac/icon.icns $(BUILD_DIR)/JustLaunchDoom.app/Contents/Resources/
 
 clean:
-	$(RM_BUILD)
-
-ifeq ($(OS),Windows_NT)
-RM_BUILD = cmd /c "if exist build rmdir /s /q build"
-MKDIR = mkdir
-else
-RM_BUILD = rm -rf build
-MKDIR = mkdir -p
-endif
+	rm -rf build
