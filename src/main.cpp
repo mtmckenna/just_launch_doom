@@ -70,10 +70,23 @@ void set_cursor_hand()
 
 std::string get_application_support_path()
 {
+#ifdef _WIN32 // Windows platform
+    const char *appDataDir = getenv("APPDATA");
+    assert(appDataDir != nullptr);
+
+    std::string path = std::string(appDataDir) + "\\" + APP_NAME;
+#elif __APPLE__ // macOS platform
     const char *homeDir = getenv("HOME");
     assert(homeDir != nullptr);
 
     std::string path = std::string(homeDir) + "/Library/Application Support/" + APP_NAME;
+#else // Other platforms (assuming Linux/Unix-like)
+    const char *homeDir = getenv("HOME");
+    assert(homeDir != nullptr);
+
+    std::string path = std::string(homeDir) + "/." + APP_NAME;
+#endif
+
     std::filesystem::create_directories(path);
     return path;
 }
