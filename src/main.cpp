@@ -16,7 +16,7 @@
 #error This backend requires SDL 2.0.17+ because of SDL_RenderGeometry() function
 #endif
 
-#define VERSION "0.1.0"
+#define VERSION "0.1.1"
 
 int renderer_width, renderer_height;
 int color_buffer_width, color_buffer_height;
