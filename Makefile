@@ -36,8 +36,6 @@ OBJECTS_WIN :=    $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/win/%.o,$(SOURCES))
 
 .PHONY: all clean mac windows
 
-all: mac
-
 $(BUILD_DIR)/win/%.o: $(SRC_DIR)/%.cpp
 	mkdir -p $(dir $@)
 	$(CXX_WIN) $(CXXFLAGS_WIN) -c $< -o $@ $(BUILD_ASSETS_DIR)/win/app.res
@@ -72,6 +70,9 @@ $(BUILD_DIR)/$(EXECUTABLE)_x86_64: $(OBJECTS_X86_64)
 
 $(BUILD_DIR)/$(EXECUTABLE)_universal: $(BUILD_DIR)/$(EXECUTABLE)_arm64 $(BUILD_DIR)/$(EXECUTABLE)_x86_64
 	lipo -create -output $@ $^
+
+mac_dev:
+	$(BUILD_DIR)/$(EXECUTABLE)_arm64
 
 mac: $(BUILD_DIR)/$(EXECUTABLE)_universal
 	mkdir -p $(BUILD_DIR)/JustLaunchDoom.app/Contents/MacOS
