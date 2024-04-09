@@ -24,6 +24,7 @@ Super basic Doom launcher
 - [ImGui](https://github.com/ocornut/imgui)
 - [imgui-filebrowser](https://github.com/AirGuanZ/imgui-filebrowser)
 - [nlohmann/json](https://github.com/nlohmann/json)
+- [PSX Doom fire adapted from Fabien Sanglard's tutorial](https://fabiensanglard.net/doom_fire_psx/)
 
 ## Contact
 
