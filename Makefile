@@ -7,9 +7,15 @@ BUILD_ASSETS_DIR := ./build_assets
 DEBUGFLAGS := -g -O0
 SDL_CFLAGS := $(shell sdl2-config --cflags)
 CXXFLAGS := -std=c++17 $(SDL_CFLAGS) -I/usr/local/include -I./ $(DEBUGFLAGS)
+CXXFLAGS_LINUX := -std=c++17 $(SDL_CFLAGS) -I./ $(DEBUGFLAGS)
 CXXFLAGS_WIN := -std=c++17 $(SDL_CFLAGS) -I./ $(DEBUGFLAGS)
 UNAME_S := $(shell uname -s)
 EXECUTABLE := just_launch_doom
+
+ifneq (,$(findstring Linux,$(UNAME_S)))
+SDL_STATIC_LIBS_LINUX := $(shell sdl2-config --static-libs)
+LDFLAGS_LINUX := $(SDL_STATIC_LIBS_LINUX)
+endif
 
 ifneq (,$(findstring Darwin,$(UNAME_S)))
 SDL_STATIC_LIBS_ARM := $(shell sdl2-config --static-libs)
@@ -31,10 +37,10 @@ ICON_OBJ := $(BUILD_DIR)/app.res
 SOURCES := $(shell find $(SRC_DIR) -name '*.cpp')
 OBJECTS_ARM64 :=  $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/arm64/%.o,$(SOURCES))
 OBJECTS_X86_64 := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/x86_64/%.o,$(SOURCES))
+OBJECTS_LINUX := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/linux/%.o,$(SOURCES))
 OBJECTS_WIN :=    $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/win/%.o,$(SOURCES))
 
-
-.PHONY: all clean mac windows
+.PHONY: all clean mac windows linux
 
 $(BUILD_DIR)/win/%.o: $(SRC_DIR)/%.cpp
 	mkdir -p $(dir $@)
@@ -52,6 +58,10 @@ $(BUILD_DIR)/x86_64/%.o: $(SRC_DIR)/%.cpp
 	mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@ -target x86_64-apple-macos10.15
 
+$(BUILD_DIR)/linux/%.o: $(SRC_DIR)/%.cpp
+	mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS_LINUX) -c $< -o $@
+
 $(BUILD_DIR)/win/%.o: $(SRC_DIR)/%.cpp
 	mkdir -p $(dir $@)
 	$(CXX_WIN) $(CXXFLAGS_WIN) -c $< -o $@
@@ -68,10 +78,17 @@ $(BUILD_DIR)/$(EXECUTABLE).exe: $(OBJECTS_WIN)
 $(BUILD_DIR)/$(EXECUTABLE)_x86_64: $(OBJECTS_X86_64)
 	$(CXX) -arch x86_64 $(LDFLAGS_X86) $^ -o $@
 
+$(BUILD_DIR)/$(EXECUTABLE)_linux: $(OBJECTS_LINUX)
+	$(CXX) $(LDFLAGS_LINUX) $^ -o $@
+
 $(BUILD_DIR)/$(EXECUTABLE)_universal: $(BUILD_DIR)/$(EXECUTABLE)_arm64 $(BUILD_DIR)/$(EXECUTABLE)_x86_64
 	lipo -create -output $@ $^
 
-mac_dev:
+linux: $(BUILD_DIR)/$(EXECUTABLE)_linux
+	mkdir -p $(BUILD_DIR)
+	$(BUILD_DIR)/$(EXECUTABLE)_linux
+
+mac_dev: $(BUILD_DIR)/$(EXECUTABLE)_arm64
 	$(BUILD_DIR)/$(EXECUTABLE)_arm64
 
 mac: $(BUILD_DIR)/$(EXECUTABLE)_universal
