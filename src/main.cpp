@@ -433,6 +433,7 @@ void show_pwad_button()
     {
         config["pwad_path"] = pwad_file_dialog.GetSelected().string();
         pwad_file_dialog.ClearSelected();
+        populate_pwad_list();
     }
 
     ImGui::PopStyleColor(1);
