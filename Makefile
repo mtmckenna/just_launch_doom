@@ -6,7 +6,7 @@ BUILD_DIR := ./build
 BUILD_ASSETS_DIR := ./build_assets
 DEBUGFLAGS := -g -O0
 SDL_CFLAGS := $(shell sdl2-config --cflags)
-CXXFLAGS := -std=c++17 $(SDL_CFLAGS) -I/usr/local/include -I./ $(DEBUGFLAGS)
+CXXFLAGS := $(DEBUGFLAGS) -std=c++17 $(SDL_CFLAGS) -I/usr/local/include -I./
 CXXFLAGS_LINUX := -std=c++17 $(SDL_CFLAGS) -I./ $(DEBUGFLAGS)
 CXXFLAGS_WIN := -std=c++17 $(SDL_CFLAGS) -I./ $(DEBUGFLAGS)
 UNAME_S := $(shell uname -s)
@@ -41,6 +41,8 @@ OBJECTS_LINUX := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/linux/%.o,$(SOURCES))
 OBJECTS_WIN :=    $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/win/%.o,$(SOURCES))
 
 .PHONY: all clean mac windows linux
+
+all: mac windows linux
 
 $(BUILD_DIR)/win/%.o: $(SRC_DIR)/%.cpp
 	mkdir -p $(dir $@)
