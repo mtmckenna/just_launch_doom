@@ -22,17 +22,18 @@ int renderer_width, renderer_height;
 int color_buffer_width, color_buffer_height;
 int launch_button_height = 35;
 char command_buf[1024] = "THIS IS THE COMMAND";
-//std::vector<bool> pwads(120, false);
+char custom_params_buf[1024] = "";
+// std::vector<bool> pwads(120, false);
 std::vector<std::pair<std::string, bool>> pwads;
 
 uint32_t *color_buffer = nullptr;
 nlohmann::json config = {
-        {"gzdoom_filepath", ""},
-        {"resolution",  {800, 600}},
-        {"pwad_path",   ""},
-        {"iwad_filepath",   ""},
-        {"selected_pwads", nlohmann::json::array()}
-};
+    {"gzdoom_filepath", ""},
+    {"resolution", {800, 600}},
+    {"pwad_path", ""},
+    {"iwad_filepath", ""},
+    {"selected_pwads", nlohmann::json::array()},
+    {"custom_params", ""}};
 
 const std::string APP_NAME = "just_launch_doom";
 ImGui::FileBrowser gzdoom_file_dialog;
@@ -52,7 +53,8 @@ SDL_Renderer *renderer;
 #ifdef _WIN32
 #include <windows.h>
 
-void launch_process_win(const char* path) {
+void launch_process_win(const char *path)
+{
     STARTUPINFO si;
     PROCESS_INFORMATION pi;
 
@@ -60,17 +62,18 @@ void launch_process_win(const char* path) {
     si.cb = sizeof(si);
     ZeroMemory(&pi, sizeof(pi));
 
-    if (!CreateProcess(NULL,   // No module name (use command line)
-        (LPSTR)path,        // Command line
-        NULL,               // Process handle not inheritable
-        NULL,               // Thread handle not inheritable
-        FALSE,              // Set handle inheritance to FALSE
-        0,                  // No creation flags
-        NULL,               // Use parent's environment block
-        NULL,               // Use parent's starting directory
-        &si,                // Pointer to STARTUPINFO structure
-        &pi)               // Pointer to PROCESS_INFORMATION structure
-    ) {
+    if (!CreateProcess(NULL,        // No module name (use command line)
+                       (LPSTR)path, // Command line
+                       NULL,        // Process handle not inheritable
+                       NULL,        // Thread handle not inheritable
+                       FALSE,       // Set handle inheritance to FALSE
+                       0,           // No creation flags
+                       NULL,        // Use parent's environment block
+                       NULL,        // Use parent's starting directory
+                       &si,         // Pointer to STARTUPINFO structure
+                       &pi)         // Pointer to PROCESS_INFORMATION structure
+    )
+    {
         printf("CreateProcess failed (%d).\n", GetLastError());
         return;
     }
@@ -83,7 +86,6 @@ void launch_process_win(const char* path) {
     CloseHandle(pi.hThread);
 }
 #endif
-
 
 static void help_marker(const char *desc)
 {
@@ -116,7 +118,7 @@ std::string get_application_support_path()
     assert(homeDir != nullptr);
 
     std::string path = std::string(homeDir) + "/Library/Application Support/" + APP_NAME;
-#else // Other platforms (assuming Linux/Unix-like)
+#else           // Other platforms (assuming Linux/Unix-like)
     const char *homeDir = getenv("HOME");
     assert(homeDir != nullptr);
 
@@ -142,6 +144,7 @@ std::string get_launch_command()
     std::string command = config["gzdoom_filepath"];
     std::string iwad = config["iwad_filepath"];
     std::string pwad = "";
+    std::string custom_params = config["custom_params"];
 
     // go through pwads and add them to the command
     for (size_t i = 0; i < pwads.size(); i++)
@@ -159,6 +162,11 @@ std::string get_launch_command()
 
     std::string cmd = "\"" + command + "\"" + " " + "-iwad " + "\"" + iwad + "\"" + " " + pwad;
 
+    if (!custom_params.empty())
+    {
+        cmd += " " + custom_params;
+    }
+
     return cmd;
 }
 
@@ -170,7 +178,8 @@ bool write_config_file(const std::string &path, nlohmann::json &config)
     {
         file << config.dump(4); // dump with 4 spaces indentation
         file.close();
-    } else
+    }
+    else
     {
         return false;
     }
@@ -187,7 +196,8 @@ bool read_config_file(std::string &path, nlohmann::json &config)
     {
         file >> config;
         file.close();
-    } else
+    }
+    else
     {
         write_config_file(path, config);
     }
@@ -195,8 +205,8 @@ bool read_config_file(std::string &path, nlohmann::json &config)
     return true;
 }
 
-
-void populate_pwad_list() {
+void populate_pwad_list()
+{
     auto selected_pwads = config["selected_pwads"];
     pwads.clear();
 
@@ -208,13 +218,14 @@ void populate_pwad_list() {
         return;
     }
 
-    for (const auto& entry : std::filesystem::directory_iterator(pwadPath))
+    for (const auto &entry : std::filesystem::directory_iterator(pwadPath))
     {
-        if (entry.is_regular_file()) {
+        if (entry.is_regular_file())
+        {
             std::string filePath = entry.path().string();
 
             bool selected = false;
-            for (const auto& selected_pwad : selected_pwads)
+            for (const auto &selected_pwad : selected_pwads)
             {
                 if (selected_pwad == filePath)
                 {
@@ -233,13 +244,14 @@ void show_pwad_list()
     ImGui::SeparatorText("Select PWAD(s)");
 
     ImVec2 avail = ImGui::GetContentRegionAvail();
-    ImVec2 listSize = ImVec2(avail.x, avail.y - 2 * ImGui::GetFrameHeightWithSpacing() - launch_button_height); // Reserve space for one line height for the next widget, if necessary
-
+    // Account for custom parameters field, final command field, and launch button
+    float reserved_height = 4 * ImGui::GetFrameHeightWithSpacing() + launch_button_height;
+    ImVec2 listSize = ImVec2(avail.x, avail.y - reserved_height);
 
     if (ImGui::BeginListBox("##pwad_list_id", listSize))
     {
         ImGui::PushStyleColor(ImGuiCol_CheckMark, ImVec4(0.0f, 0.5f, 0.0f, 1.0f)); // Green checkmark
-        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(1.0f, 1.0f, 1.0f, 0.1f)); // Semi-transparent white background
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(1.0f, 1.0f, 1.0f, 0.1f));   // Semi-transparent white background
 
         for (size_t i = 0; i < pwads.size(); i++)
         {
@@ -264,13 +276,12 @@ void show_pwad_list()
         ImGui::PopStyleColor(2); // Pop both colors at once
         ImGui::EndListBox();
     }
-
 }
 
 void show_launch_button()
 {
     ImGui::SetNextItemWidth(ImGui::GetWindowWidth());
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f,0.5,0.0, .75f));
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.5, 0.0, .75f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.5f, 0.0f, 0.0f, .75f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.0f, 0.0f, .75f)); // Darker
 
@@ -288,11 +299,10 @@ void show_launch_button()
             }
         }
 
-
 #ifdef _WIN32
-            launch_process_win(cmd.c_str());
+        launch_process_win(cmd.c_str());
 #else
-            system(cmd.c_str());
+        system(cmd.c_str());
 #endif
     }
     ImGui::PopStyleColor(3);
@@ -316,7 +326,8 @@ void show_gzdoom_button()
         if (gzdoom_filepath.empty())
         {
             gzdoom_file_dialog.SetPwd(get_initial_application_path());
-        } else
+        }
+        else
         {
             gzdoom_file_dialog.SetPwd(gzdoom_filepath);
         }
@@ -342,7 +353,8 @@ void show_gzdoom_button()
     if (path.empty())
     {
         ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "No Doom executable selected");
-    } else
+    }
+    else
     {
         ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "%s", path.c_str());
     }
@@ -366,7 +378,8 @@ void show_iwad_button()
         if (filepath_string.empty())
         {
             iwad_file_dialog.SetPwd("~/");
-        } else
+        }
+        else
         {
             std::filesystem::path file_path(filepath_string);
             std::filesystem::path directoryPath = file_path.parent_path();
@@ -394,7 +407,8 @@ void show_iwad_button()
     if (path.empty())
     {
         ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "No IWAD selected (e.g. doom.wad)");
-    } else
+    }
+    else
     {
         ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "%s", path.c_str());
     }
@@ -416,7 +430,8 @@ void show_pwad_button()
         if (config["pwad_path"].empty())
         {
             pwad_file_dialog.SetPwd("~/");
-        } else
+        }
+        else
         {
             pwad_file_dialog.SetPwd(config["pwad_path"]);
         }
@@ -444,7 +459,8 @@ void show_pwad_button()
     if (path.empty())
     {
         ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "No PWAD folder selected");
-    } else
+    }
+    else
     {
         ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "%s", path.c_str());
     }
@@ -454,17 +470,31 @@ void show_pwad_button()
 
 void show_command()
 {
-    snprintf(command_buf, IM_ARRAYSIZE(command_buf), "%s", get_launch_command().c_str());
-    ImGui::SeparatorText("Command to run");
+    ImGui::SeparatorText("Custom Parameters");
     ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.0f, 0.0f, 0.0f, 0.75f));
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 
-    if (ImGui::InputText("##command_id", command_buf, IM_ARRAYSIZE(command_buf)))
+    // Copy current custom params to buffer if it exists
+    if (!config["custom_params"].empty())
     {
-        // This code gets executed if the input text changes.
-        // Here you can handle the updated input, for example:
-        std::string text = command_buf; // Now you have the text in an std::string if you need to use it elsewhere
+        strncpy(custom_params_buf, config["custom_params"].get<std::string>().c_str(), sizeof(custom_params_buf) - 1);
+        custom_params_buf[sizeof(custom_params_buf) - 1] = '\0';
     }
+
+    if (ImGui::InputText("##custom_params_id", custom_params_buf, sizeof(custom_params_buf)))
+    {
+        // Update config with new value
+        config["custom_params"] = custom_params_buf;
+    }
+
+    ImGui::PopStyleColor();
+
+    ImGui::SeparatorText("Final Command");
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.0f, 0.0f, 0.0f, 0.75f));
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+
+    snprintf(command_buf, IM_ARRAYSIZE(command_buf), "%s", get_launch_command().c_str());
+    ImGui::InputText("##command_id", command_buf, IM_ARRAYSIZE(command_buf), ImGuiInputTextFlags_ReadOnly);
 
     ImGui::PopStyleColor();
 }
@@ -493,19 +523,19 @@ void set_color_buffer_size()
 {
     const int MAX_WIDTH = 640;
     const int MAX_HEIGHT = 480;
-    float aspect_ratio_x = (float) renderer_width / (float) renderer_height;
-    float aspect_ratio_y = (float) renderer_height / (float) renderer_width;
+    float aspect_ratio_x = (float)renderer_width / (float)renderer_height;
+    float aspect_ratio_y = (float)renderer_height / (float)renderer_width;
 
     if (aspect_ratio_x > aspect_ratio_y)
     {
         color_buffer_width = MAX_WIDTH;
         color_buffer_height = MAX_WIDTH * aspect_ratio_y;
-    } else
+    }
+    else
     {
         color_buffer_height = MAX_HEIGHT;
         color_buffer_width = MAX_HEIGHT * aspect_ratio_x;
     }
-
 }
 
 void configure_color_buffer()
@@ -530,22 +560,22 @@ void update()
             ImGui_ImplSDL2_ProcessEvent(&event);
             switch (event.type)
             {
-                case SDL_QUIT:
+            case SDL_QUIT:
+                done = true;
+                break;
+            case SDL_WINDOWEVENT:
+                if (event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(window))
                     done = true;
-                    break;
-                case SDL_WINDOWEVENT:
-                    if (event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(window))
-                        done = true;
-                    if (event.window.event == SDL_WINDOWEVENT_RESIZED)
-                    {
-                        configure_color_buffer();
-                        // Update the configuration with the new size
-                        int newWidth = event.window.data1;
-                        int newHeight = event.window.data2;
-                        config["resolution"] = {newWidth, newHeight};
-                        write_config_file(get_config_file_path(), config); // Optionally save to file immediately
-                    }
-                    break;
+                if (event.window.event == SDL_WINDOWEVENT_RESIZED)
+                {
+                    configure_color_buffer();
+                    // Update the configuration with the new size
+                    int newWidth = event.window.data1;
+                    int newHeight = event.window.data2;
+                    config["resolution"] = {newWidth, newHeight};
+                    write_config_file(get_config_file_path(), config); // Optionally save to file immediately
+                }
+                break;
             }
         }
 
@@ -567,8 +597,8 @@ void update()
         // Rendering
         ImGui::Render();
         SDL_RenderSetScale(renderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
-        SDL_SetRenderDrawColor(renderer, (Uint8) (clear_color.x * 255), (Uint8) (clear_color.y * 255),
-                               (Uint8) (clear_color.z * 255), (Uint8) (clear_color.w * 255));
+        SDL_SetRenderDrawColor(renderer, (Uint8)(clear_color.x * 255), (Uint8)(clear_color.y * 255),
+                               (Uint8)(clear_color.z * 255), (Uint8)(clear_color.w * 255));
         SDL_RenderClear(renderer);
 
         draw_fire(color_buffer_texture, color_buffer, color_buffer_width, color_buffer_height);
@@ -604,6 +634,11 @@ void setup_config_file()
     {
         config["resolution"] = {800, 600};
     }
+
+    if (config["custom_params"].empty())
+    {
+        config["custom_params"] = "";
+    }
 }
 
 int setup()
@@ -624,7 +659,7 @@ int setup()
 #endif
 
     // Create window with SDL_Renderer graphics context
-    auto window_flags = (SDL_WindowFlags) (SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+    auto window_flags = (SDL_WindowFlags)(SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 
     std::string title;
     title += "Just Launch Doom v";
@@ -653,9 +688,9 @@ int setup()
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO &io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-    io.IniFilename = NULL; // Disable imgui.ini
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;  // Enable Gamepad Controls
+    io.IniFilename = NULL;                                // Disable imgui.ini
 
     ImGui::StyleColorsDark();
 
