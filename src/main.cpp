@@ -371,7 +371,8 @@ void show_gzdoom_button()
     }
     else
     {
-        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "%s", path.c_str());
+        std::filesystem::path path_obj(path);
+        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "%s", path_obj.filename().string().c_str());
     }
 
     ImGui::PopStyleColor(4);
@@ -425,7 +426,8 @@ void show_iwad_button()
     }
     else
     {
-        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "%s", path.c_str());
+        std::filesystem::path path_obj(path);
+        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "%s", path_obj.filename().string().c_str());
     }
 
     ImGui::PopStyleColor(4);
