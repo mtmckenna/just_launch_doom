@@ -78,8 +78,8 @@ const std::map<std::string, Theme> themes = {
                   ImVec4(0.63f, 0.81f, 0.94f, 1.0f),  // Lighter blue for hover
                   ImVec4(0.43f, 0.61f, 0.94f, 1.0f),  // Darker blue for active
                   ImVec4(0.0f, 0.0f, 0.0f, 1.0f),     // Black for dialog title
-                  ImVec4(0.90f, 0.90f, 0.90f, 1.00f), // Light gray for background (softer)
-                  ImVec4(0.94f, 0.94f, 0.94f, 1.0f),  // Slightly lighter gray for frame background
+                  ImVec4(0.90f, 0.90f, 0.90f, 1.00f), // Light gray for background
+                  ImVec4(0.92f, 0.92f, 0.92f, 1.0f),  // Slightly lighter gray for frame background
                   ImVec4(0.0f, 0.0f, 0.0f, 1.0f),     // Black text
                   ImVec4(0.0f, 0.6f, 0.0f, 1.0f),     // Dark green text
                   ImVec4(0.8f, 0.0f, 0.0f, 1.0f)      // Dark red text
@@ -642,12 +642,6 @@ void show_theme_selector()
     ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, frame_bg_color);
     ImGui::PushStyleColor(ImGuiCol_FrameBgActive, frame_bg_color);
 
-    // Set the arrow color to match the button color in light theme
-    if (config["theme"] == "light")
-    {
-        ImGui::PushStyleColor(ImGuiCol_Text, button_color);
-    }
-
     std::string theme_label = "Theme: " + config["theme"].get<std::string>();
     theme_label[0] = std::toupper(theme_label[0]); // Capitalize first letter
     theme_label[7] = std::toupper(theme_label[7]); // Capitalize first letter of theme name
@@ -656,12 +650,6 @@ void show_theme_selector()
     ImGui::PushItemWidth(120);
     if (ImGui::BeginCombo("##Theme", theme_label.c_str()))
     {
-        // Pop the arrow color before showing the items
-        if (config["theme"] == "light")
-        {
-            ImGui::PopStyleColor();
-        }
-
         for (const auto &theme : themes)
         {
             bool is_selected = (config["theme"] == theme.first);
@@ -680,10 +668,6 @@ void show_theme_selector()
             }
         }
         ImGui::EndCombo();
-    }
-    else if (config["theme"] == "light")
-    {
-        ImGui::PopStyleColor(); // Pop the arrow color if combo isn't open
     }
     ImGui::PopItemWidth();
     set_cursor_hand();
@@ -717,10 +701,16 @@ void show_ui()
         ImGui::SetCursorPos(ImVec2(spacing, spacing));
         show_gzdoom_button();
 
-        // Move cursor down for next row
-        ImGui::SetCursorPos(ImVec2(spacing, ImGui::GetCursorPosY() + spacing));
+        // Move cursor down for next row, maintaining left alignment
+        float current_y = ImGui::GetCursorPosY() + spacing;
+        ImGui::SetCursorPos(ImVec2(spacing, current_y));
         show_iwad_button();
+
+        // Ensure PWAD button starts at the same x position
+        ImGui::SetCursorPos(ImVec2(spacing, ImGui::GetCursorPosY()));
         show_pwad_button();
+
+        // Keep consistent spacing for remaining elements
         show_pwad_list();
         show_command();
         show_launch_button();
