@@ -690,8 +690,9 @@ void show_ui()
     {
         // Calculate positions for right-aligned elements
         float window_width = ImGui::GetWindowWidth();
-        float theme_width = 120; // Fixed width for theme selector
-        float spacing = 10;      // Space between elements
+        float theme_width = 120;  // Fixed width for theme selector
+        float spacing = 10;       // Space from window edges
+        float button_spacing = 3; // Space between buttons
 
         // Position theme selector in the top right
         ImGui::SetCursorPos(ImVec2(window_width - theme_width - spacing, spacing));
@@ -701,13 +702,12 @@ void show_ui()
         ImGui::SetCursorPos(ImVec2(spacing, spacing));
         show_gzdoom_button();
 
-        // Move cursor down for next row, maintaining left alignment
-        float current_y = ImGui::GetCursorPosY() + spacing;
-        ImGui::SetCursorPos(ImVec2(spacing, current_y));
+        // Move cursor down for next row with minimal spacing
+        ImGui::SetCursorPos(ImVec2(spacing, ImGui::GetCursorPosY() + button_spacing));
         show_iwad_button();
 
-        // Ensure PWAD button starts at the same x position
-        ImGui::SetCursorPos(ImVec2(spacing, ImGui::GetCursorPosY()));
+        // Add PWAD button with same spacing
+        ImGui::SetCursorPos(ImVec2(spacing, ImGui::GetCursorPosY() + button_spacing));
         show_pwad_button();
 
         // Keep consistent spacing for remaining elements
