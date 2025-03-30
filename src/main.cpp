@@ -270,7 +270,15 @@ void show_pwad_list()
             // Checkbox for selection. Use the label from the pair
             if (ImGui::Checkbox(filename.c_str(), &pwads[i].second))
             {
-                config["selected_pwads"].push_back(pwads[i].first);
+                config["selected_pwads"] = nlohmann::json::array();
+                for (size_t j = 0; j < pwads.size(); j++)
+                {
+                    if (pwads[j].second)
+                    {
+                        config["selected_pwads"].push_back(pwads[j].first);
+                    }
+                }
+                write_config_file(get_config_file_path(), config);
             }
 
             // Add tooltip showing full path
