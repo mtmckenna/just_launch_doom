@@ -16,7 +16,7 @@
 #error This backend requires SDL 2.0.17+ because of SDL_RenderGeometry() function
 #endif
 
-#define VERSION "0.1.2"
+#define VERSION "0.1.3"
 
 int renderer_width, renderer_height;
 int color_buffer_width, color_buffer_height;
@@ -30,7 +30,7 @@ uint32_t *color_buffer = nullptr;
 nlohmann::json config = {
     {"gzdoom_filepath", ""},
     {"resolution", {800, 600}},
-    {"pwad_path", ""},
+    {"pwad_directories", nlohmann::json::array()},
     {"iwad_filepath", ""},
     {"selected_pwads", nlohmann::json::array()},
     {"custom_params", ""}};
@@ -210,31 +210,35 @@ void populate_pwad_list()
     auto selected_pwads = config["selected_pwads"];
     pwads.clear();
 
-    std::string pwadPath = config["pwad_path"];
-
-    if (!std::filesystem::exists(pwadPath) || !std::filesystem::is_directory(pwadPath))
+    // Iterate through all PWAD directories
+    for (const auto &pwad_dir : config["pwad_directories"])
     {
-        std::cerr << "The specified PWAD path does not exist or is not a directory." << std::endl;
-        return;
-    }
+        std::string pwadPath = pwad_dir;
 
-    for (const auto &entry : std::filesystem::directory_iterator(pwadPath))
-    {
-        if (entry.is_regular_file())
+        if (!std::filesystem::exists(pwadPath) || !std::filesystem::is_directory(pwadPath))
         {
-            std::string filePath = entry.path().string();
+            std::cerr << "The specified PWAD path does not exist or is not a directory: " << pwadPath << std::endl;
+            continue;
+        }
 
-            bool selected = false;
-            for (const auto &selected_pwad : selected_pwads)
+        for (const auto &entry : std::filesystem::directory_iterator(pwadPath))
+        {
+            if (entry.is_regular_file())
             {
-                if (selected_pwad == filePath)
-                {
-                    selected = true;
-                    break;
-                }
-            }
+                std::string filePath = entry.path().string();
 
-            pwads.emplace_back(filePath, selected);
+                bool selected = false;
+                for (const auto &selected_pwad : selected_pwads)
+                {
+                    if (selected_pwad == filePath)
+                    {
+                        selected = true;
+                        break;
+                    }
+                }
+
+                pwads.emplace_back(filePath, selected);
+            }
         }
     }
 }
@@ -268,6 +272,17 @@ void show_pwad_list()
             {
                 config["selected_pwads"].push_back(pwads[i].first);
             }
+
+            // Add tooltip showing full path
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::BeginTooltip();
+                ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+                ImGui::TextUnformatted(pwad_file_path.c_str());
+                ImGui::PopTextWrapPos();
+                ImGui::EndTooltip();
+            }
+
             set_cursor_hand();
 
             ImGui::PopID(); // Don't forget to pop the ID after each element
@@ -423,46 +438,72 @@ void show_pwad_button()
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, button_active_color);
     ImGui::PushStyleColor(ImGuiCol_HeaderHovered, button_color);
 
-    if (ImGui::Button("Select PWAD folder"))
+    if (ImGui::Button("Add PWAD directory"))
     {
-        pwad_file_dialog.SetTitle("Select IWAD");
+        pwad_file_dialog.SetTitle("Select PWAD Directory");
 
-        if (config["pwad_path"].empty())
+        if (config["pwad_directories"].empty())
         {
             pwad_file_dialog.SetPwd("~/");
         }
         else
         {
-            pwad_file_dialog.SetPwd(config["pwad_path"]);
+            // Use the last added directory as the starting point
+            std::string last_dir = config["pwad_directories"].back();
+            pwad_file_dialog.SetPwd(last_dir);
         }
 
         pwad_file_dialog.Open();
     }
-    help_marker("e.g. ~/doom_wads/");
+    help_marker("Add a directory containing PWADs");
     set_cursor_hand();
 
     ImGui::PushStyleColor(ImGuiCol_TitleBgActive, dialog_title_color);
-
     pwad_file_dialog.Display();
     if (pwad_file_dialog.HasSelected())
     {
-        config["pwad_path"] = pwad_file_dialog.GetSelected().string();
+        std::string new_dir = pwad_file_dialog.GetSelected().string();
+        // Check if directory is already in the list
+        bool exists = false;
+        for (const auto &dir : config["pwad_directories"])
+        {
+            if (dir == new_dir)
+            {
+                exists = true;
+                break;
+            }
+        }
+        if (!exists)
+        {
+            config["pwad_directories"].push_back(new_dir);
+            populate_pwad_list();
+        }
         pwad_file_dialog.ClearSelected();
-        populate_pwad_list();
     }
-
     ImGui::PopStyleColor(1);
 
-    ImGui::SameLine();
-    std::string path = config["pwad_path"];
-
-    if (path.empty())
+    // Display list of PWAD directories
+    if (!config["pwad_directories"].empty())
     {
-        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "No PWAD folder selected");
+        ImGui::SeparatorText("PWAD Directories");
+        for (size_t i = 0; i < config["pwad_directories"].size(); i++)
+        {
+            ImGui::PushID(i);
+            std::string dir = config["pwad_directories"][i];
+            ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "%s", dir.c_str());
+            ImGui::SameLine();
+            if (ImGui::Button("Remove"))
+            {
+                config["pwad_directories"].erase(config["pwad_directories"].begin() + i);
+                populate_pwad_list();
+            }
+            set_cursor_hand();
+            ImGui::PopID();
+        }
     }
     else
     {
-        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "%s", path.c_str());
+        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "No PWAD directories added");
     }
 
     ImGui::PopStyleColor(4);
