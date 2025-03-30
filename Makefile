@@ -54,11 +54,11 @@ $(ICON_OBJ): $(ICON)
 
 $(BUILD_DIR)/arm64/%.o: $(SRC_DIR)/%.cpp
 	mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) -c $< -o $@ -target arm64-apple-macos13.0
+	$(CXX) $(CXXFLAGS) -arch arm64 -mmacosx-version-min=13.0 -c $< -o $@
 
 $(BUILD_DIR)/x86_64/%.o: $(SRC_DIR)/%.cpp
 	mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) -c $< -o $@ -target x86_64-apple-macos13.0
+	$(CXX) $(CXXFLAGS) -arch x86_64 -mmacosx-version-min=13.0 -c $< -o $@ 
 
 $(BUILD_DIR)/linux/%.o: $(SRC_DIR)/%.cpp
 	mkdir -p $(dir $@)
@@ -72,13 +72,13 @@ windows: $(OBJECTS_WIN) $(ICON_OBJ)
 	$(CXX_WIN) -o $(BUILD_DIR)/JustLaunchDoom.exe $^ $(LDFLAGS_WIN)
 
 $(BUILD_DIR)/$(EXECUTABLE)_arm64: $(OBJECTS_ARM64)
-	$(CXX) -arch arm64 $(LDFLAGS_ARM) $^ -o $@
+	$(CXX) -arch arm64 -mmacosx-version-min=13.0 $(LDFLAGS_ARM) $^ -o $@
 
 $(BUILD_DIR)/$(EXECUTABLE).exe: $(OBJECTS_WIN)
 	$(WIN_CXX) $(LDFLAGS_WIN) $^ -o $@
 
 $(BUILD_DIR)/$(EXECUTABLE)_x86_64: $(OBJECTS_X86_64)
-	$(CXX) -arch x86_64 $(LDFLAGS_X86) $^ -o $@
+	$(CXX) -arch x86_64 -mmacosx-version-min=13.0 $(LDFLAGS_X86) $^ -o $@
 
 $(BUILD_DIR)/$(EXECUTABLE)_linux: $(OBJECTS_LINUX)
 	$(CXX) $(LDFLAGS_LINUX) $^ -o $@
