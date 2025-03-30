@@ -54,11 +54,11 @@ $(ICON_OBJ): $(ICON)
 
 $(BUILD_DIR)/arm64/%.o: $(SRC_DIR)/%.cpp
 	mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) -c $< -o $@ -target arm64-apple-macos10.15
+	$(CXX) $(CXXFLAGS) -c $< -o $@ -target arm64-apple-macos13.0
 
 $(BUILD_DIR)/x86_64/%.o: $(SRC_DIR)/%.cpp
 	mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) -c $< -o $@ -target x86_64-apple-macos10.15
+	$(CXX) $(CXXFLAGS) -c $< -o $@ -target x86_64-apple-macos13.0
 
 $(BUILD_DIR)/linux/%.o: $(SRC_DIR)/%.cpp
 	mkdir -p $(dir $@)
