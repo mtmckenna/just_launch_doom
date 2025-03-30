@@ -33,19 +33,69 @@ nlohmann::json config = {
     {"pwad_directories", nlohmann::json::array()},
     {"iwad_filepath", ""},
     {"selected_pwads", nlohmann::json::array()},
-    {"custom_params", ""}};
+    {"custom_params", ""},
+    {"theme", "fire"}};
 
-const std::string APP_NAME = "just_launch_doom";
-ImGui::FileBrowser gzdoom_file_dialog;
-ImGui::FileBrowser iwad_file_dialog;
-ImGui::FileBrowser pwad_file_dialog(ImGuiFileBrowserFlags_SelectDirectory);
+// Theme definitions
+struct Theme
+{
+    ImVec4 button_color;
+    ImVec4 button_hover_color;
+    ImVec4 button_active_color;
+    ImVec4 dialog_title_color;
+    ImVec4 clear_color;
+    ImVec4 frame_bg_color;
+    ImVec4 text_color;       // Add text color
+    ImVec4 text_color_green; // For success/selected states
+    ImVec4 text_color_red;   // For error/unselected states
+};
 
-ImVec4 button_color = ImVec4(0.85f, 0.46f, 0.14f, 1.0f);
-ImVec4 button_hover_color = ImVec4(0.95f, 0.56f, 0.24f, 1.0f);
-ImVec4 button_active_color = ImVec4(0.75f, 0.36f, 0.04f, 1.0f);
-ImVec4 dialog_title_color = ImVec4(0.0f, 0.0f, 0.0f, 1.0f);
+const std::map<std::string, Theme> themes = {
+    {"dark", {
+                 ImVec4(0.4f, 0.4f, 0.4f, 1.0f),  // Gray
+                 ImVec4(0.5f, 0.5f, 0.5f, 1.0f),  // Lighter gray
+                 ImVec4(0.3f, 0.3f, 0.3f, 1.0f),  // Darker gray
+                 ImVec4(1.0f, 1.0f, 1.0f, 1.0f),  // White
+                 ImVec4(0.1f, 0.1f, 0.1f, 1.00f), // Dark gray
+                 ImVec4(0.0f, 0.0f, 0.0f, 0.75f), // Semi-transparent black
+                 ImVec4(1.0f, 1.0f, 1.0f, 1.0f),  // White text
+                 ImVec4(0.0f, 1.0f, 0.0f, 1.0f),  // Green text
+                 ImVec4(1.0f, 0.0f, 0.0f, 1.0f)   // Red text
+             }},
+    {"fire", {
+                 ImVec4(0.85f, 0.46f, 0.14f, 1.0f),  // Orange
+                 ImVec4(0.95f, 0.56f, 0.24f, 1.0f),  // Lighter orange
+                 ImVec4(0.75f, 0.36f, 0.04f, 1.0f),  // Darker orange
+                 ImVec4(0.0f, 0.0f, 0.0f, 1.0f),     // Black
+                 ImVec4(0.45f, 0.55f, 0.60f, 1.00f), // Gray
+                 ImVec4(0.0f, 0.0f, 0.0f, 0.75f),    // Semi-transparent black
+                 ImVec4(1.0f, 1.0f, 1.0f, 1.0f),     // White text
+                 ImVec4(0.0f, 1.0f, 0.0f, 1.0f),     // Green text
+                 ImVec4(1.0f, 0.0f, 0.0f, 1.0f)      // Red text
+             }},
+    {"light", {
+                  ImVec4(0.53f, 0.71f, 0.94f, 1.0f),  // Light blue for buttons
+                  ImVec4(0.63f, 0.81f, 0.94f, 1.0f),  // Lighter blue for hover
+                  ImVec4(0.43f, 0.61f, 0.94f, 1.0f),  // Darker blue for active
+                  ImVec4(0.0f, 0.0f, 0.0f, 1.0f),     // Black for dialog title
+                  ImVec4(0.90f, 0.90f, 0.90f, 1.00f), // Light gray for background (softer)
+                  ImVec4(0.94f, 0.94f, 0.94f, 1.0f),  // Slightly lighter gray for frame background
+                  ImVec4(0.0f, 0.0f, 0.0f, 1.0f),     // Black text
+                  ImVec4(0.0f, 0.6f, 0.0f, 1.0f),     // Dark green text
+                  ImVec4(0.8f, 0.0f, 0.0f, 1.0f)      // Dark red text
+              }}};
 
-ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+// Global theme variables
+ImVec4 button_color;
+ImVec4 button_hover_color;
+ImVec4 button_active_color;
+ImVec4 dialog_title_color;
+ImVec4 clear_color;
+ImVec4 frame_bg_color;
+ImVec4 text_color;
+ImVec4 text_color_green;
+ImVec4 text_color_red;
+
 SDL_Texture *color_buffer_texture;
 SDL_Window *window;
 SDL_Renderer *renderer;
@@ -97,6 +147,29 @@ static void help_marker(const char *desc)
         ImGui::EndTooltip();
     }
 }
+
+void apply_theme(const std::string &theme_name)
+{
+    auto it = themes.find(theme_name);
+    if (it != themes.end())
+    {
+        const Theme &theme = it->second;
+        button_color = theme.button_color;
+        button_hover_color = theme.button_hover_color;
+        button_active_color = theme.button_active_color;
+        dialog_title_color = theme.dialog_title_color;
+        clear_color = theme.clear_color;
+        frame_bg_color = theme.frame_bg_color;
+        text_color = theme.text_color;
+        text_color_green = theme.text_color_green;
+        text_color_red = theme.text_color_red;
+    }
+}
+
+const std::string APP_NAME = "just_launch_doom";
+ImGui::FileBrowser gzdoom_file_dialog;
+ImGui::FileBrowser iwad_file_dialog;
+ImGui::FileBrowser pwad_file_dialog(ImGuiFileBrowserFlags_SelectDirectory);
 
 void set_cursor_hand()
 {
@@ -255,7 +328,12 @@ void show_pwad_list()
     if (ImGui::BeginListBox("##pwad_list_id", listSize))
     {
         ImGui::PushStyleColor(ImGuiCol_CheckMark, ImVec4(0.0f, 0.5f, 0.0f, 1.0f)); // Green checkmark
-        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(1.0f, 1.0f, 1.0f, 0.1f));   // Semi-transparent white background
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, frame_bg_color);                   // Theme frame background
+        ImGui::PushStyleColor(ImGuiCol_Text, text_color);                          // Theme text color
+
+        // Make unchecked boxes visible with a border color matching the button color
+        ImGui::PushStyleColor(ImGuiCol_Border, button_color);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
 
         for (size_t i = 0; i < pwads.size(); i++)
         {
@@ -296,7 +374,8 @@ void show_pwad_list()
             ImGui::PopID(); // Don't forget to pop the ID after each element
         }
 
-        ImGui::PopStyleColor(2); // Pop both colors at once
+        ImGui::PopStyleVar();
+        ImGui::PopStyleColor(4); // Pop all colors including the border
         ImGui::EndListBox();
     }
 }
@@ -375,12 +454,12 @@ void show_gzdoom_button()
 
     if (path.empty())
     {
-        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "No Doom executable selected");
+        ImGui::TextColored(text_color_red, "No Doom executable selected");
     }
     else
     {
         std::filesystem::path path_obj(path);
-        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "%s", path_obj.filename().string().c_str());
+        ImGui::TextColored(text_color_green, "%s", path_obj.filename().string().c_str());
     }
 
     ImGui::PopStyleColor(4);
@@ -430,12 +509,12 @@ void show_iwad_button()
 
     if (path.empty())
     {
-        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "No IWAD selected (e.g. doom.wad)");
+        ImGui::TextColored(text_color_red, "No IWAD selected (e.g. doom.wad)");
     }
     else
     {
         std::filesystem::path path_obj(path);
-        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "%s", path_obj.filename().string().c_str());
+        ImGui::TextColored(text_color_green, "%s", path_obj.filename().string().c_str());
     }
 
     ImGui::PopStyleColor(4);
@@ -500,7 +579,7 @@ void show_pwad_button()
         {
             ImGui::PushID(i);
             std::string dir = config["pwad_directories"][i];
-            ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "%s", dir.c_str());
+            ImGui::TextColored(text_color_green, "%s", dir.c_str());
             ImGui::SameLine();
             if (ImGui::Button("Remove"))
             {
@@ -513,7 +592,7 @@ void show_pwad_button()
     }
     else
     {
-        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "No PWAD directories added");
+        ImGui::TextColored(text_color_red, "No PWAD directories added");
     }
 
     ImGui::PopStyleColor(4);
@@ -522,7 +601,8 @@ void show_pwad_button()
 void show_command()
 {
     ImGui::SeparatorText("Custom Parameters");
-    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.0f, 0.0f, 0.0f, 0.75f));
+    ImGui::PushStyleColor(ImGuiCol_Text, text_color);
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, frame_bg_color);
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 
     // Copy current custom params to buffer if it exists
@@ -538,16 +618,77 @@ void show_command()
         config["custom_params"] = custom_params_buf;
     }
 
-    ImGui::PopStyleColor();
+    ImGui::PopStyleColor(2);
 
     ImGui::SeparatorText("Final Command");
-    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.0f, 0.0f, 0.0f, 0.75f));
+    ImGui::PushStyleColor(ImGuiCol_Text, text_color);
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, frame_bg_color);
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 
     snprintf(command_buf, IM_ARRAYSIZE(command_buf), "%s", get_launch_command().c_str());
     ImGui::InputText("##command_id", command_buf, IM_ARRAYSIZE(command_buf), ImGuiInputTextFlags_ReadOnly);
 
-    ImGui::PopStyleColor();
+    ImGui::PopStyleColor(2);
+}
+
+void show_theme_selector()
+{
+    ImGui::PushStyleColor(ImGuiCol_Button, frame_bg_color); // Use frame background color for main button
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, button_hover_color);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, button_active_color);
+    ImGui::PushStyleColor(ImGuiCol_Text, text_color);        // Theme text color
+    ImGui::PushStyleColor(ImGuiCol_PopupBg, frame_bg_color); // Theme background for popup
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, frame_bg_color); // Background of the combo box
+    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, frame_bg_color);
+    ImGui::PushStyleColor(ImGuiCol_FrameBgActive, frame_bg_color);
+
+    // Set the arrow color to match the button color in light theme
+    if (config["theme"] == "light")
+    {
+        ImGui::PushStyleColor(ImGuiCol_Text, button_color);
+    }
+
+    std::string theme_label = "Theme: " + config["theme"].get<std::string>();
+    theme_label[0] = std::toupper(theme_label[0]); // Capitalize first letter
+    theme_label[7] = std::toupper(theme_label[7]); // Capitalize first letter of theme name
+
+    // Set a fixed width for the combo box
+    ImGui::PushItemWidth(120);
+    if (ImGui::BeginCombo("##Theme", theme_label.c_str()))
+    {
+        // Pop the arrow color before showing the items
+        if (config["theme"] == "light")
+        {
+            ImGui::PopStyleColor();
+        }
+
+        for (const auto &theme : themes)
+        {
+            bool is_selected = (config["theme"] == theme.first);
+            std::string display_name = theme.first;
+            display_name[0] = std::toupper(display_name[0]); // Capitalize first letter
+
+            if (ImGui::Selectable(display_name.c_str(), is_selected))
+            {
+                config["theme"] = theme.first;
+                apply_theme(theme.first);
+                write_config_file(get_config_file_path(), config);
+            }
+            if (is_selected)
+            {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+    else if (config["theme"] == "light")
+    {
+        ImGui::PopStyleColor(); // Pop the arrow color if combo isn't open
+    }
+    ImGui::PopItemWidth();
+    set_cursor_hand();
+
+    ImGui::PopStyleColor(8);
 }
 
 void show_ui()
@@ -556,18 +697,35 @@ void show_ui()
                                     ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse |
                                     ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings;
 
-    ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(0, 0, 0, 50));
+    // Set global text color for the window
+    ImGui::PushStyleColor(ImGuiCol_Text, text_color);
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, frame_bg_color);
+
     // Put everything in a full screen window
     if (ImGui::Begin("fullscreen window", nullptr, window_flags))
     {
+        // Calculate positions for right-aligned elements
+        float window_width = ImGui::GetWindowWidth();
+        float theme_width = 120; // Fixed width for theme selector
+        float spacing = 10;      // Space between elements
+
+        // Position theme selector in the top right
+        ImGui::SetCursorPos(ImVec2(window_width - theme_width - spacing, spacing));
+        show_theme_selector();
+
+        // Reset cursor for consistent left alignment of all buttons
+        ImGui::SetCursorPos(ImVec2(spacing, spacing));
         show_gzdoom_button();
+
+        // Move cursor down for next row
+        ImGui::SetCursorPos(ImVec2(spacing, ImGui::GetCursorPosY() + spacing));
         show_iwad_button();
         show_pwad_button();
         show_pwad_list();
         show_command();
         show_launch_button();
     }
-    ImGui::PopStyleColor();
+    ImGui::PopStyleColor(2);
 }
 
 void set_color_buffer_size()
@@ -652,8 +810,12 @@ void update()
                                (Uint8)(clear_color.z * 255), (Uint8)(clear_color.w * 255));
         SDL_RenderClear(renderer);
 
-        draw_fire(color_buffer_texture, color_buffer, color_buffer_width, color_buffer_height);
-        SDL_RenderCopy(renderer, color_buffer_texture, NULL, NULL);
+        // Only show fire animation in fire theme
+        if (config["theme"] == "fire")
+        {
+            draw_fire(color_buffer_texture, color_buffer, color_buffer_width, color_buffer_height);
+            SDL_RenderCopy(renderer, color_buffer_texture, NULL, NULL);
+        }
 
         ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData());
         SDL_RenderPresent(renderer);
@@ -689,6 +851,12 @@ void setup_config_file()
     if (config["custom_params"].empty())
     {
         config["custom_params"] = "";
+    }
+
+    // Ensure theme field exists with default value
+    if (!config.contains("theme") || config["theme"].is_null())
+    {
+        config["theme"] = "fire";
     }
 }
 
@@ -752,6 +920,9 @@ int setup()
 
     setup_config_file();
     populate_pwad_list();
+
+    // Apply initial theme
+    apply_theme(config["theme"].get<std::string>());
 
     return 0;
 }
