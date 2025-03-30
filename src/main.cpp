@@ -74,14 +74,14 @@ const std::map<std::string, Theme> themes = {
                  ImVec4(1.0f, 0.0f, 0.0f, 1.0f)      // Red text
              }},
     {"light", {
-                  ImVec4(0.53f, 0.71f, 0.94f, 1.0f),  // Light blue for buttons
-                  ImVec4(0.63f, 0.81f, 0.94f, 1.0f),  // Lighter blue for hover
-                  ImVec4(0.43f, 0.61f, 0.94f, 1.0f),  // Darker blue for active
+                  ImVec4(0.45f, 0.45f, 0.45f, 1.0f),  // Dark gray for buttons
+                  ImVec4(0.55f, 0.55f, 0.55f, 1.0f),  // Slightly lighter gray for hover
+                  ImVec4(0.35f, 0.35f, 0.35f, 1.0f),  // Darker gray for active
                   ImVec4(0.0f, 0.0f, 0.0f, 1.0f),     // Black for dialog title
-                  ImVec4(0.90f, 0.90f, 0.90f, 1.00f), // Light gray for background
-                  ImVec4(0.92f, 0.92f, 0.92f, 1.0f),  // Slightly lighter gray for frame background
+                  ImVec4(0.85f, 0.85f, 0.85f, 1.00f), // Light gray for background
+                  ImVec4(0.80f, 0.80f, 0.80f, 1.0f),  // Slightly darker gray for frame background
                   ImVec4(0.0f, 0.0f, 0.0f, 1.0f),     // Black text
-                  ImVec4(0.0f, 0.6f, 0.0f, 1.0f),     // Dark green text
+                  ImVec4(0.0f, 0.4f, 0.0f, 1.0f),     // Darker green text
                   ImVec4(0.8f, 0.0f, 0.0f, 1.0f)      // Dark red text
               }}};
 
