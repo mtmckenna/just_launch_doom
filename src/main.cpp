@@ -289,40 +289,62 @@ bool read_config_file(std::string &path, nlohmann::json &config)
 
 void populate_pwad_list()
 {
-    auto selected_pwads = config["selected_pwads"];
     pwads.clear();
 
-    // Iterate through all PWAD directories
-    for (const auto &pwad_dir : config["pwad_directories"])
+    // Define allowed file extensions
+    const std::vector<std::string> allowed_extensions = {
+        ".wad", ".iwad", ".pwad", ".kpf", ".pk3", ".pk4", ".pk7",
+        ".pke", ".lmp", ".deh", ".bex", ".mus", ".doom"};
+
+    // Helper function to check if a file has an allowed extension
+    auto has_allowed_extension = [&allowed_extensions](const std::string &filename)
     {
-        std::string pwadPath = pwad_dir;
+        std::string lower_filename = filename;
+        std::transform(lower_filename.begin(), lower_filename.end(), lower_filename.begin(), ::tolower);
+        return std::any_of(allowed_extensions.begin(), allowed_extensions.end(),
+                           [&lower_filename](const std::string &ext)
+                           {
+                               return lower_filename.length() >= ext.length() &&
+                                      lower_filename.substr(lower_filename.length() - ext.length()) == ext;
+                           });
+    };
 
-        if (!std::filesystem::exists(pwadPath) || !std::filesystem::is_directory(pwadPath))
+    // go through each directory in pwad_directories
+    for (const auto &dir : config["pwad_directories"])
+    {
+        std::filesystem::path directory_path(dir);
+        if (std::filesystem::exists(directory_path) && std::filesystem::is_directory(directory_path))
         {
-            std::cerr << "The specified PWAD path does not exist or is not a directory: " << pwadPath << std::endl;
-            continue;
-        }
-
-        for (const auto &entry : std::filesystem::directory_iterator(pwadPath))
-        {
-            if (entry.is_regular_file())
+            for (const auto &entry : std::filesystem::directory_iterator(directory_path))
             {
-                std::string filePath = entry.path().string();
-
-                bool selected = false;
-                for (const auto &selected_pwad : selected_pwads)
+                if (entry.is_regular_file() && has_allowed_extension(entry.path().filename().string()))
                 {
-                    if (selected_pwad == filePath)
-                    {
-                        selected = true;
-                        break;
-                    }
-                }
+                    std::string file_path = entry.path().string();
+                    bool is_selected = false;
 
-                pwads.emplace_back(filePath, selected);
+                    // Check if this file is in the selected_pwads array
+                    for (const auto &selected_pwad : config["selected_pwads"])
+                    {
+                        if (selected_pwad == file_path)
+                        {
+                            is_selected = true;
+                            break;
+                        }
+                    }
+
+                    pwads.push_back({file_path, is_selected});
+                }
             }
         }
     }
+
+    // Sort the pwads by filename
+    std::sort(pwads.begin(), pwads.end(),
+              [](const auto &a, const auto &b)
+              {
+                  return std::filesystem::path(a.first).filename().string() <
+                         std::filesystem::path(b.first).filename().string();
+              });
 }
 
 void show_pwad_list()
