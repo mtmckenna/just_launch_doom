@@ -541,22 +541,19 @@ void show_config_button()
     ImGui::PushStyleColor(ImGuiCol_FrameBgActive, frame_bg_color);
 
     // Config selection dropdown first
-    ImGui::TextUnformatted("Config file:");
-    ImGui::SameLine();
-
-    // Set a fixed width for the combo box
-    ImGui::PushItemWidth(250); // Fixed width of 250 pixels
-
     // Store the strings in stable variables to avoid dangling pointers
     std::string selected_config_path = config["selected_config"];
-    std::string selected_config_name = selected_config_path.empty() ? "None" : std::filesystem::path(selected_config_path).filename().string();
+    std::string selected_config_name = selected_config_path.empty() ? "Config file: None" : "Config file: " + std::filesystem::path(selected_config_path).filename().string();
     const char *display_text = selected_config_name.c_str();
 
-    if (ImGui::BeginCombo("##config_select", display_text))
+    // Set a maximum width for the combo box
+    ImGui::PushItemWidth(300); // Maximum width of 300 pixels
+
+    if (ImGui::BeginCombo("##config_select", display_text, ImGuiComboFlags_WidthFitPreview))
     {
         // Add "None" option at the top
         bool is_none_selected = config["selected_config"].empty();
-        if (ImGui::Selectable("None", is_none_selected))
+        if (ImGui::Selectable("Config file: None", is_none_selected))
         {
             config["selected_config"] = "";
             write_config_file(get_config_file_path(), config);
@@ -578,7 +575,7 @@ void show_config_button()
             std::string filename = std::filesystem::path(config_path).filename().string();
             bool is_selected = (config["selected_config"] == config_path);
 
-            if (ImGui::Selectable(filename.c_str(), is_selected))
+            if (ImGui::Selectable(("Config file: " + filename).c_str(), is_selected))
             {
                 config["selected_config"] = config_path;
                 write_config_file(get_config_file_path(), config);
@@ -617,9 +614,9 @@ void show_config_button()
     set_cursor_hand();
 
     // Remove button
-    ImGui::SameLine();
     if (!config["selected_config"].empty())
     {
+        ImGui::SameLine();
         if (ImGui::Button("Remove"))
         {
             // Find and remove the selected config
@@ -636,31 +633,6 @@ void show_config_button()
         }
         set_cursor_hand();
     }
-
-    ImGui::PushStyleColor(ImGuiCol_TitleBgActive, dialog_title_color);
-    config_file_dialog.Display();
-    if (config_file_dialog.HasSelected())
-    {
-        std::string new_config = config_file_dialog.GetSelected().string();
-        // Check if config is already in the list
-        bool exists = false;
-        for (const auto &cfg : config["config_files"])
-        {
-            if (cfg == new_config)
-            {
-                exists = true;
-                break;
-            }
-        }
-        if (!exists)
-        {
-            config["config_files"].push_back(new_config);
-            config["selected_config"] = new_config; // Always select the newly added config
-            write_config_file(get_config_file_path(), config);
-        }
-        config_file_dialog.ClearSelected();
-    }
-    ImGui::PopStyleColor(1);
 
     ImGui::PopStyleColor(8);
 }
