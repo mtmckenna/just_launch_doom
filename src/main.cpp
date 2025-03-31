@@ -34,7 +34,9 @@ nlohmann::json config = {
     {"iwad_filepath", ""},
     {"selected_pwads", nlohmann::json::array()},
     {"custom_params", ""},
-    {"theme", "fire"}};
+    {"theme", "fire"},
+    {"config_files", nlohmann::json::array()},
+    {"selected_config", ""}};
 
 // Theme definitions
 struct Theme
@@ -170,6 +172,7 @@ const std::string APP_NAME = "just_launch_doom";
 ImGui::FileBrowser gzdoom_file_dialog;
 ImGui::FileBrowser iwad_file_dialog;
 ImGui::FileBrowser pwad_file_dialog(ImGuiFileBrowserFlags_SelectDirectory);
+ImGui::FileBrowser config_file_dialog;
 
 void set_cursor_hand()
 {
@@ -218,6 +221,7 @@ std::string get_launch_command()
     std::string iwad = config["iwad_filepath"];
     std::string pwad = "";
     std::string custom_params = config["custom_params"];
+    std::string selected_config = config["selected_config"];
 
     // go through pwads and add them to the command
     for (size_t i = 0; i < pwads.size(); i++)
@@ -234,6 +238,11 @@ std::string get_launch_command()
     }
 
     std::string cmd = "\"" + command + "\"" + " " + "-iwad " + "\"" + iwad + "\"" + " " + pwad;
+
+    if (!selected_config.empty())
+    {
+        cmd += " -config \"" + selected_config + "\"";
+    }
 
     if (!custom_params.empty())
     {
@@ -520,6 +529,142 @@ void show_iwad_button()
     ImGui::PopStyleColor(4);
 }
 
+void show_config_button()
+{
+    ImGui::PushStyleColor(ImGuiCol_Button, button_color);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, button_hover_color);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, button_active_color);
+    ImGui::PushStyleColor(ImGuiCol_Text, text_color);        // Theme text color
+    ImGui::PushStyleColor(ImGuiCol_PopupBg, frame_bg_color); // Theme background for popup
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, frame_bg_color); // Background of the combo box
+    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, frame_bg_color);
+    ImGui::PushStyleColor(ImGuiCol_FrameBgActive, frame_bg_color);
+
+    // Config selection dropdown first
+    ImGui::TextUnformatted("Config file:");
+    ImGui::SameLine();
+
+    // Set a fixed width for the combo box
+    ImGui::PushItemWidth(250); // Fixed width of 250 pixels
+
+    // Store the strings in stable variables to avoid dangling pointers
+    std::string selected_config_path = config["selected_config"];
+    std::string selected_config_name = selected_config_path.empty() ? "None" : std::filesystem::path(selected_config_path).filename().string();
+    const char *display_text = selected_config_name.c_str();
+
+    if (ImGui::BeginCombo("##config_select", display_text))
+    {
+        // Add "None" option at the top
+        bool is_none_selected = config["selected_config"].empty();
+        if (ImGui::Selectable("None", is_none_selected))
+        {
+            config["selected_config"] = "";
+            write_config_file(get_config_file_path(), config);
+        }
+        if (is_none_selected)
+        {
+            ImGui::SetItemDefaultFocus();
+        }
+
+        // Add separator after None option if we have configs
+        if (!config["config_files"].empty())
+        {
+            ImGui::Separator();
+        }
+
+        for (size_t i = 0; i < config["config_files"].size(); i++)
+        {
+            std::string config_path = config["config_files"][i];
+            std::string filename = std::filesystem::path(config_path).filename().string();
+            bool is_selected = (config["selected_config"] == config_path);
+
+            if (ImGui::Selectable(filename.c_str(), is_selected))
+            {
+                config["selected_config"] = config_path;
+                write_config_file(get_config_file_path(), config);
+            }
+            if (is_selected)
+            {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+    ImGui::PopItemWidth();
+
+    // Add Config button
+    ImGui::SameLine();
+    if (ImGui::Button("Add"))
+    {
+        config_file_dialog.SetTitle("Select Config File");
+
+        if (config["config_files"].empty())
+        {
+            config_file_dialog.SetPwd("~/");
+        }
+        else
+        {
+            // Use the last added config's directory as starting point
+            std::string last_config = config["config_files"].back();
+            std::filesystem::path file_path(last_config);
+            std::filesystem::path directoryPath = file_path.parent_path();
+            config_file_dialog.SetPwd(directoryPath.c_str());
+        }
+
+        config_file_dialog.Open();
+    }
+    help_marker("Add a new config file to the list");
+    set_cursor_hand();
+
+    // Remove button
+    ImGui::SameLine();
+    if (!config["selected_config"].empty())
+    {
+        if (ImGui::Button("Remove"))
+        {
+            // Find and remove the selected config
+            for (size_t i = 0; i < config["config_files"].size(); i++)
+            {
+                if (config["config_files"][i] == config["selected_config"])
+                {
+                    config["config_files"].erase(config["config_files"].begin() + i);
+                    config["selected_config"] = "";
+                    write_config_file(get_config_file_path(), config);
+                    break;
+                }
+            }
+        }
+        set_cursor_hand();
+    }
+
+    ImGui::PushStyleColor(ImGuiCol_TitleBgActive, dialog_title_color);
+    config_file_dialog.Display();
+    if (config_file_dialog.HasSelected())
+    {
+        std::string new_config = config_file_dialog.GetSelected().string();
+        // Check if config is already in the list
+        bool exists = false;
+        for (const auto &cfg : config["config_files"])
+        {
+            if (cfg == new_config)
+            {
+                exists = true;
+                break;
+            }
+        }
+        if (!exists)
+        {
+            config["config_files"].push_back(new_config);
+            config["selected_config"] = new_config; // Always select the newly added config
+            write_config_file(get_config_file_path(), config);
+        }
+        config_file_dialog.ClearSelected();
+    }
+    ImGui::PopStyleColor(1);
+
+    ImGui::PopStyleColor(8);
+}
+
 void show_pwad_button()
 {
     ImGui::PushStyleColor(ImGuiCol_Button, button_color);
@@ -706,6 +851,10 @@ void show_ui()
         ImGui::SetCursorPos(ImVec2(spacing, ImGui::GetCursorPosY() + button_spacing));
         show_iwad_button();
 
+        // Add config file button with same spacing
+        ImGui::SetCursorPos(ImVec2(spacing, ImGui::GetCursorPosY() + button_spacing));
+        show_config_button();
+
         // Add PWAD button with same spacing
         ImGui::SetCursorPos(ImVec2(spacing, ImGui::GetCursorPosY() + button_spacing));
         show_pwad_button();
@@ -841,6 +990,16 @@ void setup_config_file()
     if (config["custom_params"].empty())
     {
         config["custom_params"] = "";
+    }
+
+    if (config["config_files"].empty())
+    {
+        config["config_files"] = nlohmann::json::array();
+    }
+
+    if (config["selected_config"].empty())
+    {
+        config["selected_config"] = "";
     }
 
     // Ensure theme field exists with default value
