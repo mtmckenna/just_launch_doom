@@ -635,6 +635,31 @@ void show_config_button()
     help_marker("Add a new config file to the list");
     set_cursor_hand();
 
+    ImGui::PushStyleColor(ImGuiCol_TitleBgActive, dialog_title_color);
+    config_file_dialog.Display();
+    if (config_file_dialog.HasSelected())
+    {
+        std::string new_config = config_file_dialog.GetSelected().string();
+        // Check if config is already in the list
+        bool exists = false;
+        for (const auto &config_path : config["config_files"])
+        {
+            if (config_path == new_config)
+            {
+                exists = true;
+                break;
+            }
+        }
+        if (!exists)
+        {
+            config["config_files"].push_back(new_config);
+            config["selected_config"] = new_config; // Automatically select the new config
+            write_config_file(get_config_file_path(), config);
+        }
+        config_file_dialog.ClearSelected();
+    }
+    ImGui::PopStyleColor(1);
+
     // Remove button
     if (!config["selected_config"].empty())
     {
