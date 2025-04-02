@@ -339,10 +339,14 @@ void populate_pwad_list()
         }
     }
 
-    // Sort the pwads by filename
+    // Sort the pwads by selection status first, then by filename
     std::sort(pwads.begin(), pwads.end(),
               [](const auto &a, const auto &b)
               {
+                  if (a.second != b.second)
+                  {
+                      return a.second > b.second; // Selected PWADs first
+                  }
                   std::string a_name = std::filesystem::path(a.first).filename().string();
                   std::string b_name = std::filesystem::path(b.first).filename().string();
                   std::transform(a_name.begin(), a_name.end(), a_name.begin(), ::tolower);
@@ -392,6 +396,7 @@ void show_pwad_list()
                     }
                 }
                 write_config_file(get_config_file_path(), config);
+                populate_pwad_list(); // Re-sort and update the list after selection change
             }
 
             // Add tooltip showing full path
