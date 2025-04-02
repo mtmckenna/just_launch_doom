@@ -342,8 +342,11 @@ void populate_pwad_list()
     std::sort(pwads.begin(), pwads.end(),
               [](const auto &a, const auto &b)
               {
-                  return std::filesystem::path(a.first).filename().string() <
-                         std::filesystem::path(b.first).filename().string();
+                  std::string a_name = std::filesystem::path(a.first).filename().string();
+                  std::string b_name = std::filesystem::path(b.first).filename().string();
+                  std::transform(a_name.begin(), a_name.end(), a_name.begin(), ::tolower);
+                  std::transform(b_name.begin(), b_name.end(), b_name.begin(), ::tolower);
+                  return a_name < b_name;
               });
 }
 
