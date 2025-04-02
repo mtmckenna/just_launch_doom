@@ -18,6 +18,12 @@
 
 #define VERSION "0.1.7"
 
+// Global constants for file extensions
+const std::vector<std::string> WAD_EXTENSIONS = {
+    ".wad", ".iwad", ".pwad", ".kpf", ".pk3", ".pk4", ".pk7",
+    ".pke", ".lmp", ".deh", ".bex", ".mus", ".doom"};
+const std::vector<std::string> CONFIG_EXTENSIONS = {".cfg", ".ini"};
+
 int renderer_width, renderer_height;
 int color_buffer_width, color_buffer_height;
 int launch_button_height = 35;
@@ -291,17 +297,12 @@ void populate_pwad_list()
 {
     pwads.clear();
 
-    // Define allowed file extensions
-    const std::vector<std::string> allowed_extensions = {
-        ".wad", ".iwad", ".pwad", ".kpf", ".pk3", ".pk4", ".pk7",
-        ".pke", ".lmp", ".deh", ".bex", ".mus", ".doom"};
-
     // Helper function to check if a file has an allowed extension
-    auto has_allowed_extension = [&allowed_extensions](const std::string &filename)
+    auto has_allowed_extension = [](const std::string &filename)
     {
         std::string lower_filename = filename;
         std::transform(lower_filename.begin(), lower_filename.end(), lower_filename.begin(), ::tolower);
-        return std::any_of(allowed_extensions.begin(), allowed_extensions.end(),
+        return std::any_of(WAD_EXTENSIONS.begin(), WAD_EXTENSIONS.end(),
                            [&lower_filename](const std::string &ext)
                            {
                                return lower_filename.length() >= ext.length() &&
@@ -1091,6 +1092,11 @@ int setup()
 
     setup_config_file();
     populate_pwad_list();
+
+    // Configure file dialogs with appropriate filters and flags
+    iwad_file_dialog.SetTypeFilters(WAD_EXTENSIONS);
+    config_file_dialog.SetTypeFilters(CONFIG_EXTENSIONS);
+    pwad_file_dialog.SetTypeFilters(WAD_EXTENSIONS);
 
     // Apply initial theme
     apply_theme(config["theme"].get<std::string>());
