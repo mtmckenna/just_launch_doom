@@ -24,6 +24,14 @@ const std::vector<std::string> WAD_EXTENSIONS = {
     ".pke", ".lmp", ".deh", ".bex", ".mus", ".doom"};
 const std::vector<std::string> CONFIG_EXTENSIONS = {".cfg", ".ini"};
 
+#ifdef _WIN32
+const std::vector<std::string> EXECUTABLE_EXTENSIONS = {".exe", ".bat", ".cmd", ".ps1"}; 
+#elif __APPLE__
+const std::vector<std::string> EXECUTABLE_EXTENSIONS = {"", ".sh"};
+#else
+const std::vector<std::string> EXECUTABLE_EXTENSIONS = {"", ".sh", ".AppImage"};
+#endif
+
 int renderer_width, renderer_height;
 int color_buffer_width, color_buffer_height;
 int launch_button_height = 35;
@@ -1102,6 +1110,7 @@ int setup()
     iwad_file_dialog.SetTypeFilters(WAD_EXTENSIONS);
     config_file_dialog.SetTypeFilters(CONFIG_EXTENSIONS);
     pwad_file_dialog.SetTypeFilters(WAD_EXTENSIONS);
+    gzdoom_file_dialog.SetTypeFilters(EXECUTABLE_EXTENSIONS);
 
     // Apply initial theme
     apply_theme(config["theme"].get<std::string>());
