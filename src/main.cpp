@@ -25,7 +25,7 @@ const std::vector<std::string> WAD_EXTENSIONS = {
 const std::vector<std::string> CONFIG_EXTENSIONS = {".cfg", ".ini"};
 
 #ifdef _WIN32
-const std::vector<std::string> EXECUTABLE_EXTENSIONS = {".exe", ".bat", ".cmd", ".ps1"}; 
+const std::vector<std::string> EXECUTABLE_EXTENSIONS = {".exe", ".bat", ".cmd", ".ps1"};
 #elif __APPLE__
 const std::vector<std::string> EXECUTABLE_EXTENSIONS = {"", ".sh"};
 #else
@@ -231,7 +231,7 @@ std::string get_config_file_path()
 
 std::string get_launch_command()
 {
-    std::string command = config["gzdoom_filepath"];
+    std::string command = "\"" + config["selected_executable"].get<std::string>() + "\"";
     std::string iwad = config["iwad_filepath"];
     std::string pwad = "";
     std::string custom_params = config["custom_params"];
@@ -248,22 +248,25 @@ std::string get_launch_command()
 
     if (!pwad.empty())
     {
-        pwad = " -file " + pwad;
+        command += " -file " + pwad;
     }
 
-    std::string cmd = "\"" + command + "\"" + " " + "-iwad " + "\"" + iwad + "\"" + " " + pwad;
+    if (!iwad.empty())
+    {
+        command += " -iwad \"" + iwad + "\"";
+    }
 
     if (!selected_config.empty())
     {
-        cmd += " -config \"" + selected_config + "\"";
+        command += " -config \"" + selected_config + "\"";
     }
 
     if (!custom_params.empty())
     {
-        cmd += " " + custom_params;
+        command += " " + custom_params;
     }
 
-    return cmd;
+    return command;
 }
 
 bool write_config_file(const std::string &path, nlohmann::json &config)
@@ -459,58 +462,134 @@ void show_launch_button()
     set_cursor_hand();
 }
 
-void show_gzdoom_button()
+void show_executable_selector()
 {
     ImGui::PushStyleColor(ImGuiCol_Button, button_color);
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, button_hover_color);
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, button_active_color);
-    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, button_color);
-    ;
+    ImGui::PushStyleColor(ImGuiCol_Text, text_color);        // Theme text color
+    ImGui::PushStyleColor(ImGuiCol_PopupBg, frame_bg_color); // Theme background for popup
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, frame_bg_color); // Background of the combo box
+    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, frame_bg_color);
+    ImGui::PushStyleColor(ImGuiCol_FrameBgActive, frame_bg_color);
 
-    if (ImGui::Button("Select Doom executable"))
+    // Executable selection dropdown
+    std::string selected_exec_path = config["selected_executable"];
+    std::string selected_exec_name = selected_exec_path.empty() ? "Executable: None" : "Executable: " + std::filesystem::path(selected_exec_path).filename().string();
+    const char *display_text = selected_exec_name.c_str();
+
+    // Set a maximum width for the combo box
+    ImGui::PushItemWidth(300); // Maximum width of 300 pixels
+
+    if (ImGui::BeginCombo("##exec_select", display_text, ImGuiComboFlags_WidthFitPreview))
     {
-        gzdoom_file_dialog.SetTitle("Select Doom executable");
-
-        std::string gzdoom_filepath = config["gzdoom_filepath"];
-
-        if (gzdoom_filepath.empty())
+        // Add "None" option at the top
+        bool is_none_selected = config["selected_executable"].empty();
+        if (ImGui::Selectable("Executable: None", is_none_selected))
         {
-            gzdoom_file_dialog.SetPwd(get_initial_application_path());
+            config["selected_executable"] = "";
+            write_config_file(get_config_file_path(), config);
+        }
+        if (is_none_selected)
+        {
+            ImGui::SetItemDefaultFocus();
+        }
+
+        // Add separator after None option if we have executables
+        if (!config["doom_executables"].empty())
+        {
+            ImGui::Separator();
+        }
+
+        for (size_t i = 0; i < config["doom_executables"].size(); i++)
+        {
+            std::string exec_path = config["doom_executables"][i];
+            std::string filename = std::filesystem::path(exec_path).filename().string();
+            bool is_selected = (config["selected_executable"] == exec_path);
+
+            if (ImGui::Selectable(("Executable: " + filename).c_str(), is_selected))
+            {
+                config["selected_executable"] = exec_path;
+                write_config_file(get_config_file_path(), config);
+            }
+            if (is_selected)
+            {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+    ImGui::PopItemWidth();
+
+    // Add Executable button
+    ImGui::SameLine();
+    if (ImGui::Button("Add"))
+    {
+        gzdoom_file_dialog.SetTitle("Select Doom Executable");
+
+        // Set the initial directory based on the current executable if it exists
+        if (!config["selected_executable"].empty())
+        {
+            std::filesystem::path current_path(config["selected_executable"]);
+            gzdoom_file_dialog.SetPwd(current_path.parent_path().string());
         }
         else
         {
-            gzdoom_file_dialog.SetPwd(gzdoom_filepath);
+            gzdoom_file_dialog.SetPwd(get_initial_application_path());
         }
 
         gzdoom_file_dialog.Open();
     }
-    help_marker("e.g. gzdoom, chocolate-doom, etc.");
+    help_marker("Add a new Doom executable to the list");
     set_cursor_hand();
 
     ImGui::PushStyleColor(ImGuiCol_TitleBgActive, dialog_title_color);
     gzdoom_file_dialog.Display();
     if (gzdoom_file_dialog.HasSelected())
     {
-        config["gzdoom_filepath"] = gzdoom_file_dialog.GetSelected().string();
+        std::string new_exec = gzdoom_file_dialog.GetSelected().string();
+        // Check if executable is already in the list
+        bool exists = false;
+        for (const auto &exec_path : config["doom_executables"])
+        {
+            if (exec_path == new_exec)
+            {
+                exists = true;
+                break;
+            }
+        }
+        if (!exists)
+        {
+            config["doom_executables"].push_back(new_exec);
+            config["selected_executable"] = new_exec; // Automatically select the new executable
+            write_config_file(get_config_file_path(), config);
+        }
         gzdoom_file_dialog.ClearSelected();
     }
     ImGui::PopStyleColor(1);
 
-    // Display path in UI
-    ImGui::SameLine();
-    std::string path = config["gzdoom_filepath"];
-
-    if (path.empty())
+    // Remove button
+    if (!config["selected_executable"].empty())
     {
-        ImGui::TextColored(text_color_red, "No Doom executable selected");
-    }
-    else
-    {
-        std::filesystem::path path_obj(path);
-        ImGui::TextColored(text_color_green, "%s", path_obj.filename().string().c_str());
+        ImGui::SameLine();
+        if (ImGui::Button("Remove"))
+        {
+            // Find and remove the selected executable
+            for (size_t i = 0; i < config["doom_executables"].size(); i++)
+            {
+                if (config["doom_executables"][i] == config["selected_executable"])
+                {
+                    config["doom_executables"].erase(config["doom_executables"].begin() + i);
+                    config["selected_executable"] = "";
+                    write_config_file(get_config_file_path(), config);
+                    break;
+                }
+            }
+        }
+        set_cursor_hand();
     }
 
-    ImGui::PopStyleColor(4);
+    ImGui::PopStyleColor(8);
 }
 
 void show_iwad_button()
@@ -881,7 +960,7 @@ void show_ui()
 
         // Reset cursor for consistent left alignment of all buttons
         ImGui::SetCursorPos(ImVec2(spacing, spacing));
-        show_gzdoom_button();
+        show_executable_selector();
 
         // Move cursor down for next row with minimal spacing
         ImGui::SetCursorPos(ImVec2(spacing, ImGui::GetCursorPosY() + button_spacing));
@@ -1036,6 +1115,38 @@ void setup_config_file()
     if (config["selected_config"].empty())
     {
         config["selected_config"] = "";
+    }
+
+    // Initialize doom_executables if it doesn't exist or is null
+    if (!config.contains("doom_executables") || config["doom_executables"].is_null())
+    {
+        config["doom_executables"] = nlohmann::json::array();
+    }
+
+    // Initialize selected_executable if it doesn't exist or is null
+    if (!config.contains("selected_executable") || config["selected_executable"].is_null())
+    {
+        config["selected_executable"] = "";
+    }
+
+    // If we have a gzdoom_filepath but no selected_executable, use it as the default
+    if (!config["gzdoom_filepath"].empty() && config["selected_executable"].empty())
+    {
+        config["selected_executable"] = config["gzdoom_filepath"];
+        // Also add it to the executables list if not already present
+        bool exists = false;
+        for (const auto &exec : config["doom_executables"])
+        {
+            if (exec == config["gzdoom_filepath"])
+            {
+                exists = true;
+                break;
+            }
+        }
+        if (!exists)
+        {
+            config["doom_executables"].push_back(config["gzdoom_filepath"]);
+        }
     }
 
     // Ensure theme field exists with default value
