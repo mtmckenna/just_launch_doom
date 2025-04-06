@@ -438,7 +438,15 @@ void show_launch_button()
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.5f, 0.0f, 0.0f, .75f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.0f, 0.0f, .75f)); // Darker
 
-    if (ImGui::Button("Just Launch Doom!", ImVec2(-1, launch_button_height)))
+    // Disable button if no executable is selected
+    bool has_executable = !config["selected_executable"].empty();
+    if (!has_executable)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.3f, 0.3f, 0.3f, .75f));
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
+    }
+
+    if (ImGui::Button("Just Launch Doom!", ImVec2(-1, launch_button_height)) && has_executable)
     {
         std::string cmd = get_launch_command();
         config["cmd"] = cmd;
@@ -457,6 +465,11 @@ void show_launch_button()
 #else
         system(cmd.c_str());
 #endif
+    }
+
+    if (!has_executable)
+    {
+        ImGui::PopStyleColor(2);
     }
     ImGui::PopStyleColor(3);
     set_cursor_hand();
@@ -483,22 +496,19 @@ void show_executable_selector()
 
     if (ImGui::BeginCombo("##exec_select", display_text, ImGuiComboFlags_WidthFitPreview))
     {
-        // Add "None" option at the top
-        bool is_none_selected = config["selected_executable"].empty();
-        if (ImGui::Selectable("Executable: None", is_none_selected))
+        // Only show "None" option if there are no executables
+        if (config["doom_executables"].empty())
         {
-            config["selected_executable"] = "";
-            write_config_file(get_config_file_path(), config);
-        }
-        if (is_none_selected)
-        {
-            ImGui::SetItemDefaultFocus();
-        }
-
-        // Add separator after None option if we have executables
-        if (!config["doom_executables"].empty())
-        {
-            ImGui::Separator();
+            bool is_none_selected = config["selected_executable"].empty();
+            if (ImGui::Selectable("Executable: None", is_none_selected))
+            {
+                config["selected_executable"] = "";
+                write_config_file(get_config_file_path(), config);
+            }
+            if (is_none_selected)
+            {
+                ImGui::SetItemDefaultFocus();
+            }
         }
 
         for (size_t i = 0; i < config["doom_executables"].size(); i++)
@@ -561,7 +571,11 @@ void show_executable_selector()
         if (!exists)
         {
             config["doom_executables"].push_back(new_exec);
-            config["selected_executable"] = new_exec; // Automatically select the new executable
+            // If this is the first executable or no executable is selected, select it
+            if (config["doom_executables"].size() == 1 || config["selected_executable"].empty())
+            {
+                config["selected_executable"] = new_exec;
+            }
             write_config_file(get_config_file_path(), config);
         }
         gzdoom_file_dialog.ClearSelected();
@@ -580,7 +594,16 @@ void show_executable_selector()
                 if (config["doom_executables"][i] == config["selected_executable"])
                 {
                     config["doom_executables"].erase(config["doom_executables"].begin() + i);
-                    config["selected_executable"] = "";
+                    // If this was the last executable, clear selection
+                    if (config["doom_executables"].empty())
+                    {
+                        config["selected_executable"] = "";
+                    }
+                    // Otherwise select the first available executable
+                    else
+                    {
+                        config["selected_executable"] = config["doom_executables"][0];
+                    }
                     write_config_file(get_config_file_path(), config);
                     break;
                 }
