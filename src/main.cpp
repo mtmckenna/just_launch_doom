@@ -571,11 +571,8 @@ void show_executable_selector()
         if (!exists)
         {
             config["doom_executables"].push_back(new_exec);
-            // If this is the first executable or no executable is selected, select it
-            if (config["doom_executables"].size() == 1 || config["selected_executable"].empty())
-            {
-                config["selected_executable"] = new_exec;
-            }
+            // Always select the newly added executable
+            config["selected_executable"] = new_exec;
             write_config_file(get_config_file_path(), config);
         }
         gzdoom_file_dialog.ClearSelected();
