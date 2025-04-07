@@ -40,7 +40,14 @@ OBJECTS_X86_64 := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/x86_64/%.o,$(SOURCES)
 OBJECTS_LINUX := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/linux/%.o,$(SOURCES))
 OBJECTS_WIN :=    $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/win/%.o,$(SOURCES))
 
-.PHONY: all clean mac windows linux
+# Test targets
+TEST_SOURCES := $(shell find tests -name '*.cpp')
+TEST_OBJECTS := $(patsubst tests/%.cpp,$(BUILD_DIR)/tests/%.o,$(TEST_SOURCES))
+# For each test file, find its corresponding implementation
+TEST_IMPL_SOURCES := $(patsubst tests/%_test.cpp,src/%.cpp,$(TEST_SOURCES))
+TEST_IMPL_OBJECTS := $(patsubst src/%.cpp,$(BUILD_DIR)/tests/%.o,$(TEST_IMPL_SOURCES))
+
+.PHONY: all clean mac windows linux test
 
 all: mac windows linux
 
@@ -99,6 +106,18 @@ mac: $(BUILD_DIR)/$(EXECUTABLE)_universal
 	cp $(BUILD_DIR)/$(EXECUTABLE)_universal $(BUILD_DIR)/JustLaunchDoom.app/Contents/MacOS/JustLaunchDoom
 	cp $(BUILD_ASSETS_DIR)/mac/Info.plist $(BUILD_DIR)/JustLaunchDoom.app/Contents/
 	cp $(BUILD_ASSETS_DIR)/mac/icon.icns $(BUILD_DIR)/JustLaunchDoom.app/Contents/Resources/
+
+$(BUILD_DIR)/tests/%.o: tests/%.cpp
+	mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/tests/%.o: src/%.cpp
+	mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+test: $(TEST_OBJECTS) $(TEST_IMPL_OBJECTS)
+	$(CXX) $(CXXFLAGS) $^ -o $(BUILD_DIR)/test_runner
+	$(BUILD_DIR)/test_runner
 
 clean:
 	rm -rf build

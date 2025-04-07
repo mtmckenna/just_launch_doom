@@ -9,6 +9,7 @@
 #include "imgui/imgui_impl_sdl2.h"
 #include "imgui/imgui_impl_sdlrenderer2.h"
 #include "imgui-filebrowser/imfilebrowser.h"
+#include "config_migration.h"
 
 #include "fire.h"
 
@@ -1095,46 +1096,14 @@ void update()
     }
 }
 
-void migrate_config(nlohmann::json &config)
-{
-    if (config.contains("gzdoom_filepath") && !config["gzdoom_filepath"].is_null())
-    {
-        if (!config.contains("doom_executables"))
-        {
-            config["doom_executables"] = nlohmann::json::array();
-        }
-
-        std::string filepath = config["gzdoom_filepath"].get<std::string>();
-
-        if (!filepath.empty())
-        {
-            bool found = false;
-            for (const auto &exe : config["doom_executables"])
-            {
-                if (exe.get<std::string>() == filepath)
-                {
-                    found = true;
-                    break;
-                }
-            }
-            if (!found)
-            {
-                config["doom_executables"].push_back(filepath);
-            }
-        }
-    }
-
-    config.erase("gzdoom_filepath");
-    write_config_file(get_config_file_path(), config);
-}
-
 void setup_config_file()
 {
     std::string config_file_path = get_config_file_path();
     bool loaded = read_config_file(config_file_path, config);
 
     // Run migrations after loading config
-    migrate_config(config);
+    config = migrate_config(config);
+    write_config_file(config_file_path, config);
 
     assert(loaded == true);
 
