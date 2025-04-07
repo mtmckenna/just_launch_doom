@@ -42,7 +42,6 @@ std::vector<std::pair<std::string, bool>> pwads;
 
 uint32_t *color_buffer = nullptr;
 nlohmann::json config = {
-    {"gzdoom_filepath", ""},
     {"resolution", {800, 600}},
     {"pwad_directories", nlohmann::json::array()},
     {"iwad_filepath", ""},
@@ -1096,21 +1095,48 @@ void update()
     }
 }
 
+void migrate_config(nlohmann::json &config)
+{
+    if (config.contains("gzdoom_filepath") && !config["gzdoom_filepath"].is_null())
+    {
+        if (!config.contains("doom_executables"))
+        {
+            config["doom_executables"] = nlohmann::json::array();
+        }
+
+        std::string filepath = config["gzdoom_filepath"].get<std::string>();
+
+        if (!filepath.empty())
+        {
+            bool found = false;
+            for (const auto &exe : config["doom_executables"])
+            {
+                if (exe.get<std::string>() == filepath)
+                {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found)
+            {
+                config["doom_executables"].push_back(filepath);
+            }
+        }
+    }
+
+    config.erase("gzdoom_filepath");
+    write_config_file(get_config_file_path(), config);
+}
+
 void setup_config_file()
 {
     std::string config_file_path = get_config_file_path();
     bool loaded = read_config_file(config_file_path, config);
+
+    // Run migrations after loading config
+    migrate_config(config);
+
     assert(loaded == true);
-
-    if (config["gzdoom_filepath"].empty())
-    {
-        config["gzdoom_filepath"] = "";
-    }
-
-    if (config["iwad_path"].empty())
-    {
-        config["iwad_path"] = "";
-    }
 
     if (config["selected_pwads"].empty())
     {
@@ -1149,31 +1175,14 @@ void setup_config_file()
         config["selected_executable"] = "";
     }
 
-    // If we have a gzdoom_filepath but no selected_executable, use it as the default
-    if (!config["gzdoom_filepath"].empty() && config["selected_executable"].empty())
-    {
-        config["selected_executable"] = config["gzdoom_filepath"];
-        // Also add it to the executables list if not already present
-        bool exists = false;
-        for (const auto &exec : config["doom_executables"])
-        {
-            if (exec == config["gzdoom_filepath"])
-            {
-                exists = true;
-                break;
-            }
-        }
-        if (!exists)
-        {
-            config["doom_executables"].push_back(config["gzdoom_filepath"]);
-        }
-    }
-
     // Ensure theme field exists with default value
     if (!config.contains("theme") || config["theme"].is_null())
     {
         config["theme"] = "fire";
     }
+
+    // Save the config after all initializations
+    write_config_file(config_file_path, config);
 }
 
 int setup()
