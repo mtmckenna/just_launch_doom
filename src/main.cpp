@@ -46,6 +46,8 @@ nlohmann::json config = {
     {"resolution", {800, 600}},
     {"pwad_directories", nlohmann::json::array()},
     {"iwad_filepath", ""},
+    {"iwads", nlohmann::json::array()},
+    {"selected_iwad", ""},
     {"selected_pwads", nlohmann::json::array()},
     {"custom_params", ""},
     {"theme", "fire"},
@@ -183,10 +185,10 @@ void apply_theme(const std::string &theme_name)
 }
 
 const std::string APP_NAME = "just_launch_doom";
-ImGui::FileBrowser gzdoom_file_dialog;
-ImGui::FileBrowser iwad_file_dialog;
+ImGui::FileBrowser gzdoom_file_dialog(ImGuiFileBrowserFlags_CloseOnEsc);
+ImGui::FileBrowser iwad_file_dialog(ImGuiFileBrowserFlags_CloseOnEsc);
 ImGui::FileBrowser pwad_file_dialog(ImGuiFileBrowserFlags_SelectDirectory);
-ImGui::FileBrowser config_file_dialog;
+ImGui::FileBrowser config_file_dialog(ImGuiFileBrowserFlags_CloseOnEsc);
 
 void set_cursor_hand()
 {
@@ -232,7 +234,7 @@ std::string get_config_file_path()
 std::string get_launch_command()
 {
     std::string command = "\"" + config["selected_executable"].get<std::string>() + "\"";
-    std::string iwad = config["iwad_filepath"];
+    std::string iwad = config["selected_iwad"];
     std::string pwad = "";
     std::string custom_params = config["custom_params"];
     std::string selected_config = config["selected_config"];
@@ -256,14 +258,14 @@ std::string get_launch_command()
         command += " -iwad \"" + iwad + "\"";
     }
 
-    if (!selected_config.empty())
-    {
-        command += " -config \"" + selected_config + "\"";
-    }
-
     if (!custom_params.empty())
     {
         command += " " + custom_params;
+    }
+
+    if (!selected_config.empty())
+    {
+        command += " -config \"" + selected_config + "\"";
     }
 
     return command;
@@ -617,54 +619,108 @@ void show_iwad_button()
     ImGui::PushStyleColor(ImGuiCol_Button, button_color);
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, button_hover_color);
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, button_active_color);
-    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, button_color);
+    ImGui::PushStyleColor(ImGuiCol_Text, text_color);        // Theme text color
+    ImGui::PushStyleColor(ImGuiCol_PopupBg, frame_bg_color); // Theme background for popup
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, frame_bg_color); // Background of the combo box
+    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, frame_bg_color);
+    ImGui::PushStyleColor(ImGuiCol_FrameBgActive, frame_bg_color);
 
-    std::string filepath_string = config["iwad_filepath"];
+    std::string filepath_string = config["selected_iwad"];
+    std::string selected_iwad_name = filepath_string.empty() ? "IWAD: None" : "IWAD: " + std::filesystem::path(filepath_string).filename().string();
 
-    if (ImGui::Button("Select IWAD"))
+    ImGui::PushItemWidth(300);
+    if (ImGui::BeginCombo("##iwad_selector", selected_iwad_name.c_str(), ImGuiComboFlags_WidthFitPreview))
     {
-        iwad_file_dialog.SetTitle("Select IWAD");
-
-        if (filepath_string.empty())
+        // Only show "None" option if there are no IWADs
+        if (config["iwads"].empty())
         {
-            iwad_file_dialog.SetPwd("~/");
-        }
-        else
-        {
-            std::filesystem::path file_path(filepath_string);
-            std::filesystem::path directoryPath = file_path.parent_path();
-            iwad_file_dialog.SetPwd(directoryPath.c_str());
+            bool is_none_selected = config["selected_iwad"].empty();
+            if (ImGui::Selectable("IWAD: None", is_none_selected))
+            {
+                config["selected_iwad"] = "";
+                write_config_file(get_config_file_path(), config);
+            }
+            if (is_none_selected)
+            {
+                ImGui::SetItemDefaultFocus();
+            }
         }
 
-        iwad_file_dialog.Open();
+        for (size_t i = 0; i < config["iwads"].size(); i++)
+        {
+            std::string iwad_path = config["iwads"][i];
+            std::string filename = std::filesystem::path(iwad_path).filename().string();
+            bool is_selected = (config["selected_iwad"] == iwad_path);
+            if (ImGui::Selectable(("IWAD: " + filename).c_str(), is_selected))
+            {
+                config["selected_iwad"] = iwad_path;
+                write_config_file(get_config_file_path(), config);
+            }
+            if (is_selected)
+            {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
     }
-    help_marker("e.g. doom.wad, doom2.wad, heretic.wad, hexen.wad, strife1.wad, etc.");
+    ImGui::PopItemWidth();
+
+    ImGui::SameLine();
+
+        if (ImGui::Button("Add##iwad"))
+        {
+
+            // print to console log
+            std::cout << "Add IWAD button clicked" << std::endl;
+
+            // Set the initial directory based on the current IWAD if it exists
+            if (!config["selected_iwad"].empty())
+            {
+                std::filesystem::path current_path(config["selected_iwad"]);
+                iwad_file_dialog.SetPwd(current_path.parent_path().string());
+            }
+            else
+            {
+    #ifdef __APPLE__
+                iwad_file_dialog.SetPwd("/Applications");
+    #else
+                iwad_file_dialog.SetPwd(std::filesystem::current_path().string());
+    #endif
+            }
+
+            iwad_file_dialog.Open();
+        }
+    help_marker("Add a new IWAD to the list");
     set_cursor_hand();
 
-    ImGui::PushStyleColor(ImGuiCol_TitleBgActive, dialog_title_color);
-    iwad_file_dialog.Display();
-    if (iwad_file_dialog.HasSelected())
+    if (!config["selected_iwad"].empty())
     {
-        config["iwad_filepath"] = iwad_file_dialog.GetSelected().string();
-        iwad_file_dialog.ClearSelected();
+        ImGui::SameLine();
+        if (ImGui::Button("Remove##iwad"))
+        {
+            std::string current_iwad = config["selected_iwad"];
+            for (size_t i = 0; i < config["iwads"].size(); i++)
+            {
+                if (config["iwads"][i] == current_iwad)
+                {
+                    config["iwads"].erase(config["iwads"].begin() + i);
+                    if (config["iwads"].empty())
+                    {
+                        config["selected_iwad"] = "";
+                    }
+                    else
+                    {
+                        config["selected_iwad"] = config["iwads"][0];
+                    }
+                    write_config_file(get_config_file_path(), config);
+                    break;
+                }
+            }
+        }
+        set_cursor_hand();
     }
-    ImGui::PopStyleColor(1);
 
-    // Display path in UI
-    ImGui::SameLine();
-    std::string path = config["iwad_filepath"];
-
-    if (path.empty())
-    {
-        ImGui::TextColored(text_color_red, "No IWAD selected (e.g. doom.wad)");
-    }
-    else
-    {
-        std::filesystem::path path_obj(path);
-        ImGui::TextColored(text_color_green, "%s", path_obj.filename().string().c_str());
-    }
-
-    ImGui::PopStyleColor(4);
+    ImGui::PopStyleColor(8);
 }
 
 void show_config_button()
@@ -986,6 +1042,56 @@ void show_ui()
         ImGui::SetCursorPos(ImVec2(spacing, ImGui::GetCursorPosY() + button_spacing));
         show_iwad_button();
 
+        // Display all file dialogs each frame
+        gzdoom_file_dialog.Display();
+        if (gzdoom_file_dialog.HasSelected())
+        {
+            std::string new_exec = gzdoom_file_dialog.GetSelected().string();
+            // Check if executable is already in the list
+            bool exists = false;
+            for (const auto &exec_path : config["doom_executables"])
+            {
+                if (exec_path == new_exec)
+                {
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists)
+            {
+                config["doom_executables"].push_back(new_exec);
+                // Always select the newly added executable
+                config["selected_executable"] = new_exec;
+                write_config_file(get_config_file_path(), config);
+            }
+            gzdoom_file_dialog.ClearSelected();
+        }
+
+        iwad_file_dialog.Display();
+        if (iwad_file_dialog.HasSelected())
+        {
+            std::string new_iwad = iwad_file_dialog.GetSelected().string();
+            bool found = false;
+            for (const auto &iwad : config["iwads"])
+            {
+                if (iwad.get<std::string>() == new_iwad)
+                {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found)
+            {
+                config["iwads"].push_back(new_iwad);
+                config["selected_iwad"] = new_iwad;
+                write_config_file(get_config_file_path(), config);
+            }
+            iwad_file_dialog.ClearSelected();
+        }
+
+        config_file_dialog.Display();
+        pwad_file_dialog.Display();
+
         // Add config file button with same spacing
         ImGui::SetCursorPos(ImVec2(spacing, ImGui::GetCursorPosY() + button_spacing));
         show_config_button();
@@ -1144,6 +1250,18 @@ void setup_config_file()
         config["selected_executable"] = "";
     }
 
+    // Initialize iwads if it doesn't exist or is null
+    if (!config.contains("iwads") || config["iwads"].is_null())
+    {
+        config["iwads"] = nlohmann::json::array();
+    }
+
+    // Initialize selected_iwad if it doesn't exist or is null
+    if (!config.contains("selected_iwad") || config["selected_iwad"].is_null())
+    {
+        config["selected_iwad"] = "";
+    }
+
     // Ensure theme field exists with default value
     if (!config.contains("theme") || config["theme"].is_null())
     {
@@ -1156,7 +1274,6 @@ void setup_config_file()
 
 int setup()
 {
-
     SDL_SetMainReady();
 
     // Setup SDL
@@ -1212,14 +1329,27 @@ int setup()
 
     io.FontGlobalScale = 1.0;
 
+    // Configure file dialogs with appropriate filters and flags BEFORE using them
+    iwad_file_dialog.SetTitle("Select IWAD");
+    iwad_file_dialog.SetTypeFilters(WAD_EXTENSIONS);
+#ifdef __APPLE__
+    iwad_file_dialog.SetPwd("/Applications");
+#else
+    iwad_file_dialog.SetPwd(std::filesystem::current_path().string());
+#endif
+
+    config_file_dialog.SetTitle("Select Config File");
+    config_file_dialog.SetTypeFilters(CONFIG_EXTENSIONS);
+
+    pwad_file_dialog.SetTitle("Select PWAD Directory");
+    pwad_file_dialog.SetTypeFilters(WAD_EXTENSIONS);
+
+    gzdoom_file_dialog.SetTitle("Select Doom Executable");
+    gzdoom_file_dialog.SetTypeFilters(EXECUTABLE_EXTENSIONS);
+
+    // Now set up config and populate lists
     setup_config_file();
     populate_pwad_list();
-
-    // Configure file dialogs with appropriate filters and flags
-    iwad_file_dialog.SetTypeFilters(WAD_EXTENSIONS);
-    config_file_dialog.SetTypeFilters(CONFIG_EXTENSIONS);
-    pwad_file_dialog.SetTypeFilters(WAD_EXTENSIONS);
-    gzdoom_file_dialog.SetTypeFilters(EXECUTABLE_EXTENSIONS);
 
     // Apply initial theme
     apply_theme(config["theme"].get<std::string>());
