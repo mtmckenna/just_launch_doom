@@ -535,7 +535,7 @@ void show_executable_selector()
 
     // Add Executable button
     ImGui::SameLine();
-    if (ImGui::Button("Add"))
+    if (ImGui::Button("Add##exe"))
     {
         gzdoom_file_dialog.SetTitle("Select Doom Executable");
 
@@ -585,7 +585,7 @@ void show_executable_selector()
     if (!config["selected_executable"].empty())
     {
         ImGui::SameLine();
-        if (ImGui::Button("Remove"))
+        if (ImGui::Button("Remove##exe"))
         {
             // Find and remove the selected executable
             for (size_t i = 0; i < config["doom_executables"].size(); i++)
@@ -670,9 +670,6 @@ void show_iwad_button()
         if (ImGui::Button("Add##iwad"))
         {
 
-            // print to console log
-            std::cout << "Add IWAD button clicked" << std::endl;
-
             // Set the initial directory based on the current IWAD if it exists
             if (!config["selected_iwad"].empty())
             {
@@ -688,11 +685,15 @@ void show_iwad_button()
     #endif
             }
 
+            ImGui::PushStyleColor(ImGuiCol_TitleBgActive, dialog_title_color);
             iwad_file_dialog.Open();
+            ImGui::PopStyleColor(1);
         }
     help_marker("Add a new IWAD to the list");
     set_cursor_hand();
 
+    ImGui::PushStyleColor(ImGuiCol_TitleBgActive, dialog_title_color);
+    iwad_file_dialog.Display();
     if (!config["selected_iwad"].empty())
     {
         ImGui::SameLine();
@@ -720,6 +721,7 @@ void show_iwad_button()
         set_cursor_hand();
     }
 
+    ImGui::PopStyleColor(1);
     ImGui::PopStyleColor(8);
 }
 
@@ -785,7 +787,7 @@ void show_config_button()
 
     // Add Config button
     ImGui::SameLine();
-    if (ImGui::Button("Add"))
+    if (ImGui::Button("Add##config"))
     {
         config_file_dialog.SetTitle("Select Config File");
 
@@ -836,7 +838,7 @@ void show_config_button()
     if (!config["selected_config"].empty())
     {
         ImGui::SameLine();
-        if (ImGui::Button("Remove"))
+        if (ImGui::Button("Remove##config"))
         {
             // Find and remove the selected config
             for (size_t i = 0; i < config["config_files"].size(); i++)
@@ -1042,8 +1044,6 @@ void show_ui()
         ImGui::SetCursorPos(ImVec2(spacing, ImGui::GetCursorPosY() + button_spacing));
         show_iwad_button();
 
-        // Display all file dialogs each frame
-        gzdoom_file_dialog.Display();
         if (gzdoom_file_dialog.HasSelected())
         {
             std::string new_exec = gzdoom_file_dialog.GetSelected().string();
@@ -1067,7 +1067,6 @@ void show_ui()
             gzdoom_file_dialog.ClearSelected();
         }
 
-        iwad_file_dialog.Display();
         if (iwad_file_dialog.HasSelected())
         {
             std::string new_iwad = iwad_file_dialog.GetSelected().string();
@@ -1088,9 +1087,6 @@ void show_ui()
             }
             iwad_file_dialog.ClearSelected();
         }
-
-        config_file_dialog.Display();
-        pwad_file_dialog.Display();
 
         // Add config file button with same spacing
         ImGui::SetCursorPos(ImVec2(spacing, ImGui::GetCursorPosY() + button_spacing));
