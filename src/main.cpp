@@ -578,6 +578,8 @@ void show_executable_selector()
             write_config_file(get_config_file_path(), config);
         }
         gzdoom_file_dialog.ClearSelected();
+        // Sort the doom_executables list alphabetically after adding a new executable
+        std::sort(config["doom_executables"].begin(), config["doom_executables"].end());
     }
     ImGui::PopStyleColor(1);
 
@@ -694,6 +696,28 @@ void show_iwad_button()
 
     ImGui::PushStyleColor(ImGuiCol_TitleBgActive, dialog_title_color);
     iwad_file_dialog.Display();
+    if (iwad_file_dialog.HasSelected())
+    {
+        std::string new_iwad = iwad_file_dialog.GetSelected().string();
+        bool found = false;
+        for (const auto &iwad : config["iwads"])
+        {
+            if (iwad.get<std::string>() == new_iwad)
+            {
+                found = true;
+                break;
+            }
+        }
+        if (!found)
+        {
+            config["iwads"].push_back(new_iwad);
+            config["selected_iwad"] = new_iwad;
+            write_config_file(get_config_file_path(), config);
+            // Sort the IWAD list alphabetically after adding a new IWAD
+            std::sort(config["iwads"].begin(), config["iwads"].end());
+        }
+        iwad_file_dialog.ClearSelected();
+    }
     if (!config["selected_iwad"].empty())
     {
         ImGui::SameLine();
@@ -1084,6 +1108,8 @@ void show_ui()
                 config["iwads"].push_back(new_iwad);
                 config["selected_iwad"] = new_iwad;
                 write_config_file(get_config_file_path(), config);
+                // Sort the IWAD list alphabetically after adding a new IWAD
+                std::sort(config["iwads"].begin(), config["iwads"].end());
             }
             iwad_file_dialog.ClearSelected();
         }
@@ -1266,6 +1292,23 @@ void setup_config_file()
 
     // Save the config after all initializations
     write_config_file(config_file_path, config);
+
+
+    std::sort(config["iwads"].begin(), config["iwads"].end(),
+              [](const std::string &a, const std::string &b) {
+                  return std::filesystem::path(a).filename() < std::filesystem::path(b).filename();
+              });
+
+    std::sort(config["config_files"].begin(), config["config_files"].end(),
+              [](const std::string &a, const std::string &b) {
+                  return std::filesystem::path(a).filename() < std::filesystem::path(b).filename();
+              });
+    
+    std::sort(config["doom_executables"].begin(), config["doom_executables"].end(),
+              [](const std::string &a, const std::string &b) {
+                  return std::filesystem::path(a).filename() < std::filesystem::path(b).filename();
+              });
+    // std::sort(config["doom_executables"].begin(), config["doom_executables"].end());
 }
 
 int setup()
