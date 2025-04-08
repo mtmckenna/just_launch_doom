@@ -62,8 +62,7 @@ void migrate_pwads(nlohmann::json &config)
     }
 }
 
-// Main migration function
-nlohmann::json migrate_config(nlohmann::json config)
+void migrate_doom_executables(nlohmann::json &config)
 {
     // Initialize doom_executables array if it doesn't exist
     if (!config.contains("doom_executables"))
@@ -96,6 +95,13 @@ nlohmann::json migrate_config(nlohmann::json config)
         // Only erase if it exists
         config.erase("gzdoom_filepath");
     }
+}
+
+// Main migration function
+nlohmann::json migrate_config(nlohmann::json config)
+{
+    // Migrate doom_executables-related configuration
+    migrate_doom_executables(config);
 
     // Migrate IWAD-related configuration
     migrate_iwads(config);
