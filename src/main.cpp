@@ -17,7 +17,7 @@
 #error This backend requires SDL 2.0.17+ because of SDL_RenderGeometry() function
 #endif
 
-#define VERSION "0.1.9"
+#define VERSION "0.1.10"
 
 // Global constants for file extensions
 const std::vector<std::string> WAD_EXTENSIONS = {
