@@ -1,13 +1,8 @@
 #include "nlohmann/json.hpp"
 
-nlohmann::json migrate_config(nlohmann::json config)
+// Function to migrate IWAD-related configuration
+void migrate_iwads(nlohmann::json &config)
 {
-    // Initialize doom_executables array if it doesn't exist
-    if (!config.contains("doom_executables"))
-    {
-        config["doom_executables"] = nlohmann::json::array();
-    }
-
     // Initialize iwads array if it doesn't exist
     if (!config.contains("iwads"))
     {
@@ -18,6 +13,53 @@ nlohmann::json migrate_config(nlohmann::json config)
     if (!config.contains("selected_iwad"))
     {
         config["selected_iwad"] = "";
+    }
+
+    // Migrate iwad_filepath to iwads array if it exists
+    if (config.contains("iwad_filepath") && !config["iwad_filepath"].is_null())
+    {
+        std::string filepath = config["iwad_filepath"].get<std::string>();
+
+        if (!filepath.empty())
+        {
+            bool found = false;
+            for (const auto &iwad : config["iwads"])
+            {
+                if (iwad.get<std::string>() == filepath)
+                {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found)
+            {
+                config["iwads"].push_back(filepath);
+            }
+
+            // Always set selected_iwad to the migrated filepath
+            config["selected_iwad"] = filepath;
+        }
+
+        // Remove the old iwad_filepath field
+        config.erase("iwad_filepath");
+
+        
+    }
+
+    // Remove the old iwad_path field if it exists
+    if (config.contains("iwad_path"))
+    {
+        config.erase("iwad_path");
+    }
+}
+
+// Main migration function
+nlohmann::json migrate_config(nlohmann::json config)
+{
+    // Initialize doom_executables array if it doesn't exist
+    if (!config.contains("doom_executables"))
+    {
+        config["doom_executables"] = nlohmann::json::array();
     }
 
     // Only try to migrate gzdoom_filepath if it exists
@@ -46,32 +88,8 @@ nlohmann::json migrate_config(nlohmann::json config)
         config.erase("gzdoom_filepath");
     }
 
-    // Migrate iwad_filepath to iwads array if it exists
-    if (config.contains("iwad_filepath") && !config["iwad_filepath"].is_null())
-    {
-        std::string filepath = config["iwad_filepath"].get<std::string>();
-
-        if (!filepath.empty())
-        {
-            bool found = false;
-            for (const auto &iwad : config["iwads"])
-            {
-                if (iwad.get<std::string>() == filepath)
-                {
-                    found = true;
-                    break;
-                }
-            }
-            if (!found)
-            {
-                config["iwads"].push_back(filepath);
-                config["selected_iwad"] = filepath;
-            }
-        }
-
-        // Only erase if it exists
-        config.erase("iwad_filepath");
-    }
+    // Migrate IWAD-related configuration
+    migrate_iwads(config);
 
     return config;
 }

@@ -4,7 +4,8 @@
 #include <filesystem>
 
 // Include the config migration function from config_migration.cpp
-extern nlohmann::json migrate_config(nlohmann::json config);
+nlohmann::json migrate_config(nlohmann::json config);
+void migrate_iwads(nlohmann::json &config);
 
 TEST_CASE("Config Migration")
 {
@@ -78,4 +79,74 @@ TEST_CASE("Config Migration")
         CHECK(migrated["doom_executables"][0] == "/path/to/gzdoom");
         CHECK(!migrated.contains("gzdoom_filepath"));
     }
+}
+
+TEST_CASE("migrate_iwads initializes iwads and selected_iwad if missing")
+{
+    nlohmann::json config = {};
+
+    migrate_iwads(config);
+
+    CHECK(config.contains("iwads"));
+    CHECK(config["iwads"].is_array());
+    CHECK(config["iwads"].empty());
+    CHECK(config.contains("selected_iwad"));
+    CHECK(config["selected_iwad"] == "");
+}
+
+TEST_CASE("migrate_iwads migrates iwad_filepath to iwads array")
+{
+    nlohmann::json config = {
+        {"iwad_filepath", "/path/to/doom.wad"}};
+
+    migrate_iwads(config);
+
+    CHECK(config["iwads"].size() == 1);
+    CHECK(config["iwads"][0] == "/path/to/doom.wad");
+    CHECK(config["selected_iwad"] == "/path/to/doom.wad");
+    CHECK_FALSE(config.contains("iwad_filepath"));
+}
+
+TEST_CASE("migrate_iwads avoids duplicate IWAD entries")
+{
+    nlohmann::json config = {
+        {"iwads", {"/path/to/doom.wad"}},
+        {"iwad_filepath", "/path/to/doom.wad"}};
+
+    migrate_iwads(config);
+
+    CHECK(config["iwads"].size() == 1);
+    CHECK(config["iwads"][0] == "/path/to/doom.wad");
+    CHECK(config["selected_iwad"] == "/path/to/doom.wad");
+    CHECK_FALSE(config.contains("iwad_filepath"));
+}
+
+TEST_CASE("migrate_iwads handles empty iwad_filepath")
+{
+    nlohmann::json config = {
+        {"iwad_filepath", ""}};
+
+    migrate_iwads(config);
+
+    CHECK(config["iwads"].empty());
+    CHECK(config["selected_iwad"] == "");
+    CHECK_FALSE(config.contains("iwad_filepath"));
+}
+
+TEST_CASE("migrate_iwads removes iwad_path after migration")
+{
+    nlohmann::json config = {
+        {"iwad_path", "/path/to/doom.wad"}
+    };
+
+    migrate_iwads(config);
+
+    // Check that iwad_path is removed
+    CHECK_FALSE(config.contains("iwad_path"));
+
+    // Check that the IWAD was not added to the iwads array (since iwad_path is not migrated)
+    CHECK(config["iwads"].empty());
+
+    // Check that selected_iwad remains empty
+    CHECK(config["selected_iwad"] == "");
 }
