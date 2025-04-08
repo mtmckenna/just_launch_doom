@@ -6,6 +6,7 @@
 // Include the config migration function from config_migration.cpp
 nlohmann::json migrate_config(nlohmann::json config);
 void migrate_iwads(nlohmann::json &config);
+void migrate_pwads(nlohmann::json &config);
 
 TEST_CASE("Config Migration")
 {
@@ -149,4 +150,36 @@ TEST_CASE("migrate_iwads removes iwad_path after migration")
 
     // Check that selected_iwad remains empty
     CHECK(config["selected_iwad"] == "");
+}
+
+TEST_CASE("migrate_config removes pwad_path after migration")
+{
+    nlohmann::json config = {
+        {"pwad_path", "/path/to/some_pwad.wad"}
+    };
+
+    nlohmann::json migrated = migrate_config(config);
+
+    // Check that pwad_path is removed
+    CHECK_FALSE(migrated.contains("pwad_path"));
+
+    // Check that no other changes were made to the config
+    CHECK(migrated["doom_executables"].is_array());
+    CHECK(migrated["iwads"].is_array());
+    CHECK(migrated["selected_iwad"] == "");
+}
+
+TEST_CASE("migrate_pwads removes pwad_path after migration")
+{
+    nlohmann::json config = {
+        {"pwad_path", "/path/to/some_pwad.wad"}
+    };
+
+    migrate_pwads(config);
+
+    // Check that pwad_path is removed
+    CHECK_FALSE(config.contains("pwad_path"));
+
+    // Ensure no other changes were made to the config
+    CHECK(config.empty());
 }

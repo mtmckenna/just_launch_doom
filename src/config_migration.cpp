@@ -53,6 +53,15 @@ void migrate_iwads(nlohmann::json &config)
     }
 }
 
+void migrate_pwads(nlohmann::json &config)
+{
+    // Remove the old pwad_path field if it exists
+    if (config.contains("pwad_path"))
+    {
+        config.erase("pwad_path");
+    }
+}
+
 // Main migration function
 nlohmann::json migrate_config(nlohmann::json config)
 {
@@ -90,6 +99,9 @@ nlohmann::json migrate_config(nlohmann::json config)
 
     // Migrate IWAD-related configuration
     migrate_iwads(config);
+
+    // Migrate PWAD-related configuration
+    migrate_pwads(config);
 
     return config;
 }
