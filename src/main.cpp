@@ -118,6 +118,8 @@ SDL_Texture *color_buffer_texture;
 SDL_Window *window;
 SDL_Renderer *renderer;
 
+bool show_settings = false; // Global state variable to track the visibility of the settings view
+
 #ifdef _WIN32
 #include <windows.h>
 
@@ -993,48 +995,51 @@ void show_command()
     ImGui::PopStyleColor(2);
 }
 
-void show_theme_selector()
-{
-    ImGui::PushStyleColor(ImGuiCol_Button, frame_bg_color); // Use frame background color for main button
+void show_settings_view() {
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+                                    ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse |
+                                    ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings;
+
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
+
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, frame_bg_color); // Apply theme background color
+    ImGui::PushStyleColor(ImGuiCol_Text, text_color);         // Apply theme text color
+    ImGui::PushStyleColor(ImGuiCol_Button, button_color);     // Apply theme button color
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, button_hover_color);
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, button_active_color);
-    ImGui::PushStyleColor(ImGuiCol_Text, text_color);        // Theme text color
-    ImGui::PushStyleColor(ImGuiCol_PopupBg, frame_bg_color); // Theme background for popup
-    ImGui::PushStyleColor(ImGuiCol_FrameBg, frame_bg_color); // Background of the combo box
-    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, frame_bg_color);
-    ImGui::PushStyleColor(ImGuiCol_FrameBgActive, frame_bg_color);
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, frame_bg_color);  // Apply theme frame background color
 
-    std::string theme_label = "Theme: " + config["theme"].get<std::string>();
-    theme_label[0] = std::toupper(theme_label[0]); // Capitalize first letter
-    theme_label[7] = std::toupper(theme_label[7]); // Capitalize first letter of theme name
-
-    // Set a fixed width for the combo box
-    ImGui::PushItemWidth(120);
-    if (ImGui::BeginCombo("##Theme", theme_label.c_str()))
-    {
-        for (const auto &theme : themes)
-        {
-            bool is_selected = (config["theme"] == theme.first);
-            std::string display_name = theme.first;
-            display_name[0] = std::toupper(display_name[0]); // Capitalize first letter
-
-            if (ImGui::Selectable(display_name.c_str(), is_selected))
-            {
-                config["theme"] = theme.first;
-                apply_theme(theme.first);
-                write_config_file(get_config_file_path(), config);
+    if (ImGui::Begin("Settings", nullptr, window_flags)) {
+        ImGui::Text("Select Theme:");
+        ImGui::PushItemWidth(120);
+        if (ImGui::BeginCombo("##Theme", config["theme"].get<std::string>().c_str())) {
+            for (const auto &theme : themes) {
+                bool is_selected = (config["theme"] == theme.first);
+                if (ImGui::Selectable(theme.first.c_str(), is_selected)) {
+                    config["theme"] = theme.first;
+                    apply_theme(theme.first);
+                    write_config_file(get_config_file_path(), config);
+                }
+                if (is_selected) {
+                    ImGui::SetItemDefaultFocus();
+                }
             }
-            if (is_selected)
-            {
-                ImGui::SetItemDefaultFocus();
-            }
+            ImGui::EndCombo();
         }
-        ImGui::EndCombo();
-    }
-    ImGui::PopItemWidth();
-    set_cursor_hand();
+        ImGui::PopItemWidth();
 
-    ImGui::PopStyleColor(8);
+        ImGui::Spacing();
+        ImGui::Spacing();
+
+        // Add an 'Okay' button to return to the main view
+        if (ImGui::Button("OK", ImVec2(100, 30))) {
+            show_settings = false;
+        }
+    }
+    ImGui::End();
+
+    ImGui::PopStyleColor(6); // Pop all theme colors
 }
 
 void show_ui()
@@ -1052,20 +1057,30 @@ void show_ui()
     {
         // Calculate positions for right-aligned elements
         float window_width = ImGui::GetWindowWidth();
-        float theme_width = 120;  // Fixed width for theme selector
+        float button_width = 100; // Width of the Settings button
         float spacing = 10;       // Space from window edges
-        float button_spacing = 3; // Space between buttons
 
-        // Position theme selector in the top right
-        ImGui::SetCursorPos(ImVec2(window_width - theme_width - spacing, spacing));
-        show_theme_selector();
+        // Apply theme colors to the Settings button
+        ImGui::PushStyleColor(ImGuiCol_Button, button_color);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, button_hover_color);
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, button_active_color);
+        ImGui::PushStyleColor(ImGuiCol_Text, text_color);
+
+        // Position the Settings button in the top-right corner
+        ImGui::SetCursorPos(ImVec2(window_width - button_width - spacing, spacing));
+        if (ImGui::Button("Settings", ImVec2(button_width, 0)))
+        {
+            show_settings = !show_settings; // Toggle the settings view visibility
+        }
+
+        ImGui::PopStyleColor(4); // Pop theme colors for the button
 
         // Reset cursor for consistent left alignment of all buttons
         ImGui::SetCursorPos(ImVec2(spacing, spacing));
         show_executable_selector();
 
         // Move cursor down for next row with minimal spacing
-        ImGui::SetCursorPos(ImVec2(spacing, ImGui::GetCursorPosY() + button_spacing));
+        ImGui::SetCursorPos(ImVec2(spacing, ImGui::GetCursorPosY() + spacing));
         show_iwad_button();
 
         if (gzdoom_file_dialog.HasSelected())
@@ -1115,11 +1130,11 @@ void show_ui()
         }
 
         // Add config file button with same spacing
-        ImGui::SetCursorPos(ImVec2(spacing, ImGui::GetCursorPosY() + button_spacing));
+        ImGui::SetCursorPos(ImVec2(spacing, ImGui::GetCursorPosY() + spacing));
         show_config_button();
 
         // Add PWAD button with same spacing
-        ImGui::SetCursorPos(ImVec2(spacing, ImGui::GetCursorPosY() + button_spacing));
+        ImGui::SetCursorPos(ImVec2(spacing, ImGui::GetCursorPosY() + spacing));
         show_pwad_button();
 
         // Keep consistent spacing for remaining elements
@@ -1128,6 +1143,12 @@ void show_ui()
         show_launch_button();
     }
     ImGui::PopStyleColor(2);
+
+    // Show the settings view if the state variable is true
+    if (show_settings)
+    {
+        show_settings_view();
+    }
 }
 
 void set_color_buffer_size()
