@@ -840,9 +840,21 @@ inline void ImGui::FileBrowser::Display()
             for (size_t i = 0; i < typeFilters_.size(); ++i)
             {
                 bool selected = i == typeFilterIndex_;
-                if (Selectable(typeFilters_[i].c_str(), selected) && !selected)
+                // McK: added this to allow empty type filters
+                if (typeFilters_[i].empty())
                 {
-                    typeFilterIndex_ = static_cast<unsigned int>(i);
+                    std::string unique_label = "No Extension##type_" + std::to_string(i);
+                    if (Selectable(unique_label.c_str(), selected) && !selected)
+                    {
+                        typeFilterIndex_ = static_cast<unsigned int>(i);
+                    }
+                }
+                else
+                {
+                    if (Selectable(typeFilters_[i].c_str(), selected) && !selected)
+                    {
+                        typeFilterIndex_ = static_cast<unsigned int>(i);
+                    }
                 }
             }
         }
@@ -1145,11 +1157,12 @@ inline bool ImGui::FileBrowser::SetCurrentDirectoryInternal(
 inline bool ImGui::FileBrowser::IsExtensionMatched(const std::filesystem::path &_extension) const
 {
     std::filesystem::path extension = ToLower(u8StrToStr(_extension.u8string()));
-// #ifdef _WIN32
-//     std::filesystem::path extension = ToLower(u8StrToStr(_extension.u8string()));
-// #else
-//     auto &extension = _extension;
-// #endif
+    // McK: Commented this out so make extensions case insensitive on all platforms
+    // #ifdef _WIN32
+    //     std::filesystem::path extension = ToLower(u8StrToStr(_extension.u8string()));
+    // #else
+    //     auto &extension = _extension;
+    // #endif
 
     // no type filters
     if (typeFilters_.empty())
