@@ -119,6 +119,7 @@ SDL_Window *window;
 SDL_Renderer *renderer;
 
 bool show_settings = false; // Global state variable to track the visibility of the settings view
+bool pin_selected_pwads_to_top = true; // Global variable to track the pinning behavior
 
 #ifdef _WIN32
 #include <windows.h>
@@ -355,19 +356,34 @@ void populate_pwad_list()
     }
 
     // Sort the pwads by selection status first, then by filename
-    std::sort(pwads.begin(), pwads.end(),
-              [](const auto &a, const auto &b)
-              {
-                  if (a.second != b.second)
+    if (pin_selected_pwads_to_top)
+    {
+        std::sort(pwads.begin(), pwads.end(),
+                  [](const auto &a, const auto &b)
                   {
-                      return a.second > b.second; // Selected PWADs first
-                  }
-                  std::string a_name = std::filesystem::path(a.first).filename().string();
-                  std::string b_name = std::filesystem::path(b.first).filename().string();
-                  std::transform(a_name.begin(), a_name.end(), a_name.begin(), ::tolower);
-                  std::transform(b_name.begin(), b_name.end(), b_name.begin(), ::tolower);
-                  return a_name < b_name;
-              });
+                      if (a.second != b.second)
+                      {
+                          return a.second > b.second; // Selected PWADs first
+                      }
+                      std::string a_name = std::filesystem::path(a.first).filename().string();
+                      std::string b_name = std::filesystem::path(b.first).filename().string();
+                      std::transform(a_name.begin(), a_name.end(), a_name.begin(), ::tolower);
+                      std::transform(b_name.begin(), b_name.end(), b_name.begin(), ::tolower);
+                      return a_name < b_name;
+                  });
+    }
+    else
+    {
+        std::sort(pwads.begin(), pwads.end(),
+                  [](const auto &a, const auto &b)
+                  {
+                      std::string a_name = std::filesystem::path(a.first).filename().string();
+                      std::string b_name = std::filesystem::path(b.first).filename().string();
+                      std::transform(a_name.begin(), a_name.end(), a_name.begin(), ::tolower);
+                      std::transform(b_name.begin(), b_name.end(), b_name.begin(), ::tolower);
+                      return a_name < b_name;
+                  });
+    }
 }
 
 void show_pwad_list()
@@ -1038,6 +1054,17 @@ void show_settings_view()
         ImGui::Spacing();
         ImGui::Spacing();
 
+        // Add a checkbox for pinning selected PWADs to the top with a border
+        ImGui::PushStyleColor(ImGuiCol_Border, button_color);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+        if (ImGui::Checkbox("Pin Selected PWADs to Top", &pin_selected_pwads_to_top)) {
+            config["pin_selected_pwads_to_top"] = pin_selected_pwads_to_top;
+            write_config_file(get_config_file_path(), config);
+            populate_pwad_list(); // Resort the PWAD list based on the new checkbox value
+        }
+        ImGui::PopStyleVar();
+        ImGui::PopStyleColor();
+
         // Add an 'Okay' button to return to the main view
         if (ImGui::Button("OK", ImVec2(100, 30)))
         {
@@ -1317,6 +1344,12 @@ void setup_config_file()
     {
         config["theme"] = "fire";
     }
+
+    // Ensure pin_selected_pwads_to_top field exists with default value
+    if (!config.contains("pin_selected_pwads_to_top") || config["pin_selected_pwads_to_top"].is_null()) {
+        config["pin_selected_pwads_to_top"] = true;
+    }
+    pin_selected_pwads_to_top = config["pin_selected_pwads_to_top"].get<bool>();
 
     // Save the config after all initializations
     write_config_file(config_file_path, config);
