@@ -562,6 +562,7 @@ void show_executable_selector()
         }
         ImGui::EndCombo();
     }
+    set_cursor_hand(); // Add hand cursor for dropdown
     ImGui::PopItemWidth();
 
     // Add Executable button
@@ -696,6 +697,7 @@ void show_iwad_button()
         }
         ImGui::EndCombo();
     }
+    set_cursor_hand(); // Add hand cursor for dropdown
     ImGui::PopItemWidth();
 
     ImGui::SameLine();
@@ -838,6 +840,7 @@ void show_config_button()
         }
         ImGui::EndCombo();
     }
+    set_cursor_hand(); // Add hand cursor for dropdown
     ImGui::PopItemWidth();
 
     // Add Config button
@@ -1062,6 +1065,7 @@ void show_settings_view()
             }
             ImGui::EndCombo();
         }
+        set_cursor_hand(); // Add hand cursor for dropdown
         ImGui::PopItemWidth();
 
         ImGui::Spacing();
@@ -1096,6 +1100,7 @@ void show_settings_view()
             }
             ImGui::EndCombo();
         }
+        set_cursor_hand(); // Add hand cursor for dropdown
         ImGui::PopItemWidth();
 
         ImGui::Spacing();
@@ -1109,6 +1114,7 @@ void show_settings_view()
             write_config_file(get_config_file_path(), config);
             populate_pwad_list(); // Resort the PWAD list based on the new checkbox value
         }
+        set_cursor_hand(); // Add hand cursor for checkbox
         ImGui::PopStyleVar();
         ImGui::PopStyleColor();
 
@@ -1117,6 +1123,7 @@ void show_settings_view()
         {
             show_settings = false;
         }
+        set_cursor_hand(); // Add hand cursor for button
     }
     ImGui::End();
 
@@ -1153,6 +1160,7 @@ void show_ui()
         {
             show_settings = !show_settings; // Toggle the settings view visibility
         }
+        set_cursor_hand(); // Add hand cursor for settings button
 
         ImGui::PopStyleColor(4); // Pop theme colors for the button
 
