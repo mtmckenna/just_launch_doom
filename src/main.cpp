@@ -17,7 +17,7 @@
 #error This backend requires SDL 2.0.17+ because of SDL_RenderGeometry() function
 #endif
 
-#define VERSION "0.1.10"
+#define VERSION "0.1.11"
 
 // Global constants for file extensions
 const std::vector<std::string> WAD_EXTENSIONS = {
@@ -118,7 +118,7 @@ SDL_Texture *color_buffer_texture;
 SDL_Window *window;
 SDL_Renderer *renderer;
 
-bool show_settings = false; // Global state variable to track the visibility of the settings view
+bool show_settings = false;            // Global state variable to track the visibility of the settings view
 bool pin_selected_pwads_to_top = true; // Global variable to track the pinning behavior
 
 #ifdef _WIN32
@@ -1069,7 +1069,8 @@ void show_settings_view()
         // Add a checkbox for pinning selected PWADs to the top with a border
         ImGui::PushStyleColor(ImGuiCol_Border, button_color);
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
-        if (ImGui::Checkbox("Pin Selected PWADs to Top", &pin_selected_pwads_to_top)) {
+        if (ImGui::Checkbox("Pin Selected PWADs to Top", &pin_selected_pwads_to_top))
+        {
             config["pin_selected_pwads_to_top"] = pin_selected_pwads_to_top;
             write_config_file(get_config_file_path(), config);
             populate_pwad_list(); // Resort the PWAD list based on the new checkbox value
@@ -1358,7 +1359,8 @@ void setup_config_file()
     }
 
     // Ensure pin_selected_pwads_to_top field exists with default value
-    if (!config.contains("pin_selected_pwads_to_top") || config["pin_selected_pwads_to_top"].is_null()) {
+    if (!config.contains("pin_selected_pwads_to_top") || config["pin_selected_pwads_to_top"].is_null())
+    {
         config["pin_selected_pwads_to_top"] = true;
     }
     pin_selected_pwads_to_top = config["pin_selected_pwads_to_top"].get<bool>();
