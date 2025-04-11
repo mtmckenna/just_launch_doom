@@ -404,8 +404,22 @@ void show_pwad_list()
     set_cursor_hand(); // Set cursor to hand when hovering
     ImGui::PopStyleColor(3);
 
+    // Add a search bar next to the 'Reload' button
+    static char search_buf[128] = "";
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Border, button_color); // Add border color
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f); // Add border size
+    ImGui::PushItemWidth(200);
+    if (ImGui::InputTextWithHint("##search_pwad", "Search PWADs...", search_buf, sizeof(search_buf)))
+    {
+        // Trigger search logic when the input changes
+        populate_pwad_list(); // Re-populate the PWAD list to apply the search filter
+    }
+    ImGui::PopItemWidth();
+    ImGui::PopStyleVar(); // Remove border size
+    ImGui::PopStyleColor(); // Remove border color
+
     ImVec2 avail = ImGui::GetContentRegionAvail();
-    // Account for custom parameters field, final command field, and launch button
     float reserved_height = 4 * ImGui::GetFrameHeightWithSpacing() + launch_button_height;
     ImVec2 listSize = ImVec2(avail.x, avail.y - reserved_height);
 
@@ -414,22 +428,26 @@ void show_pwad_list()
         ImGui::PushStyleColor(ImGuiCol_CheckMark, ImVec4(0.0f, 0.5f, 0.0f, 1.0f)); // Green checkmark
         ImGui::PushStyleColor(ImGuiCol_FrameBg, frame_bg_color);                   // Theme frame background
         ImGui::PushStyleColor(ImGuiCol_Text, text_color);                          // Theme text color
-
-        // Make unchecked boxes visible with a border color matching the button color
         ImGui::PushStyleColor(ImGuiCol_Border, button_color);
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
 
         for (size_t i = 0; i < pwads.size(); i++)
         {
-            // Using PushID is important for ensuring unique IDs within a loop
-            ImGui::PushID(i);
-
             std::string pwad_file_path = pwads[i].first;
+            std::string filename = std::filesystem::path(pwad_file_path).filename().string();
 
-            std::filesystem::path path_obj(pwad_file_path);
-            std::string filename = path_obj.filename().string();
+            // Perform case-insensitive search filtering
+            std::string lower_filename = filename;
+            std::transform(lower_filename.begin(), lower_filename.end(), lower_filename.begin(), ::tolower);
+            std::string lower_search = search_buf;
+            std::transform(lower_search.begin(), lower_search.end(), lower_search.begin(), ::tolower);
 
-            // Checkbox for selection. Use the label from the pair
+            if (!lower_search.empty() && lower_filename.find(lower_search) == std::string::npos)
+            {
+                continue; // Skip items that don't match the search
+            }
+
+            ImGui::PushID(i);
             if (ImGui::Checkbox(filename.c_str(), &pwads[i].second))
             {
                 config["selected_pwads"] = nlohmann::json::array();
@@ -444,7 +462,6 @@ void show_pwad_list()
                 populate_pwad_list(); // Re-sort and update the list after selection change
             }
 
-            // Add tooltip showing full path
             if (ImGui::IsItemHovered())
             {
                 ImGui::BeginTooltip();
@@ -455,12 +472,11 @@ void show_pwad_list()
             }
 
             set_cursor_hand();
-
-            ImGui::PopID(); // Don't forget to pop the ID after each element
+            ImGui::PopID();
         }
 
         ImGui::PopStyleVar();
-        ImGui::PopStyleColor(4); // Pop all colors including the border
+        ImGui::PopStyleColor(4);
         ImGui::EndListBox();
     }
 }
