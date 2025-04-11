@@ -390,6 +390,18 @@ void show_pwad_list()
 {
     ImGui::SeparatorText("Select PWAD(s)");
 
+    // Add a 'Reload' button next to the label with theme colors
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Button, button_color);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, button_hover_color);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, button_active_color);
+    if (ImGui::Button("Reload"))
+    {
+        populate_pwad_list(); // Recheck for files in the PWAD directories
+    }
+    set_cursor_hand(); // Set cursor to hand when hovering
+    ImGui::PopStyleColor(3);
+
     ImVec2 avail = ImGui::GetContentRegionAvail();
     // Account for custom parameters field, final command field, and launch button
     float reserved_height = 4 * ImGui::GetFrameHeightWithSpacing() + launch_button_height;
