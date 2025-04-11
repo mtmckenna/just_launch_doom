@@ -30,7 +30,7 @@ const std::vector<std::string> EXECUTABLE_EXTENSIONS = {".exe", ".bat", ".cmd", 
 #elif __APPLE__
 const std::vector<std::string> EXECUTABLE_EXTENSIONS = {"", ".sh"};
 #else
-const std::vector<std::string> EXECUTABLE_EXTENSIONS = {"", ".sh", ".AppImage"};
+const std::vector<std::string> EXECUTABLE_EXTENSIONS = {"", ".sh", ".appimage"};
 #endif
 
 int renderer_width, renderer_height;
@@ -671,28 +671,28 @@ void show_iwad_button()
 
     ImGui::SameLine();
 
-        if (ImGui::Button("Add##iwad"))
+    if (ImGui::Button("Add##iwad"))
+    {
+
+        // Set the initial directory based on the current IWAD if it exists
+        if (!config["selected_iwad"].empty())
         {
-
-            // Set the initial directory based on the current IWAD if it exists
-            if (!config["selected_iwad"].empty())
-            {
-                std::filesystem::path current_path(config["selected_iwad"]);
-                iwad_file_dialog.SetPwd(current_path.parent_path().string());
-            }
-            else
-            {
-    #ifdef __APPLE__
-                iwad_file_dialog.SetPwd("/Applications");
-    #else
-                iwad_file_dialog.SetPwd(std::filesystem::current_path().string());
-    #endif
-            }
-
-            ImGui::PushStyleColor(ImGuiCol_TitleBgActive, dialog_title_color);
-            iwad_file_dialog.Open();
-            ImGui::PopStyleColor(1);
+            std::filesystem::path current_path(config["selected_iwad"]);
+            iwad_file_dialog.SetPwd(current_path.parent_path().string());
         }
+        else
+        {
+#ifdef __APPLE__
+            iwad_file_dialog.SetPwd("/Applications");
+#else
+            iwad_file_dialog.SetPwd(std::filesystem::current_path().string());
+#endif
+        }
+
+        ImGui::PushStyleColor(ImGuiCol_TitleBgActive, dialog_title_color);
+        iwad_file_dialog.Open();
+        ImGui::PopStyleColor(1);
+    }
     help_marker("Add a new IWAD to the list");
     set_cursor_hand();
 
@@ -995,7 +995,8 @@ void show_command()
     ImGui::PopStyleColor(2);
 }
 
-void show_settings_view() {
+void show_settings_view()
+{
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
                                     ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse |
                                     ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings;
@@ -1008,20 +1009,25 @@ void show_settings_view() {
     ImGui::PushStyleColor(ImGuiCol_Button, button_color);     // Apply theme button color
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, button_hover_color);
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, button_active_color);
-    ImGui::PushStyleColor(ImGuiCol_FrameBg, frame_bg_color);  // Apply theme frame background color
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, frame_bg_color); // Apply theme frame background color
 
-    if (ImGui::Begin("Settings", nullptr, window_flags)) {
+    if (ImGui::Begin("Settings", nullptr, window_flags))
+    {
         ImGui::Text("Select Theme:");
         ImGui::PushItemWidth(120);
-        if (ImGui::BeginCombo("##Theme", config["theme"].get<std::string>().c_str())) {
-            for (const auto &theme : themes) {
+        if (ImGui::BeginCombo("##Theme", config["theme"].get<std::string>().c_str()))
+        {
+            for (const auto &theme : themes)
+            {
                 bool is_selected = (config["theme"] == theme.first);
-                if (ImGui::Selectable(theme.first.c_str(), is_selected)) {
+                if (ImGui::Selectable(theme.first.c_str(), is_selected))
+                {
                     config["theme"] = theme.first;
                     apply_theme(theme.first);
                     write_config_file(get_config_file_path(), config);
                 }
-                if (is_selected) {
+                if (is_selected)
+                {
                     ImGui::SetItemDefaultFocus();
                 }
             }
@@ -1033,7 +1039,8 @@ void show_settings_view() {
         ImGui::Spacing();
 
         // Add an 'Okay' button to return to the main view
-        if (ImGui::Button("OK", ImVec2(100, 30))) {
+        if (ImGui::Button("OK", ImVec2(100, 30)))
+        {
             show_settings = false;
         }
     }
@@ -1314,19 +1321,21 @@ void setup_config_file()
     // Save the config after all initializations
     write_config_file(config_file_path, config);
 
-
     std::sort(config["iwads"].begin(), config["iwads"].end(),
-              [](const std::string &a, const std::string &b) {
+              [](const std::string &a, const std::string &b)
+              {
                   return std::filesystem::path(a).filename() < std::filesystem::path(b).filename();
               });
 
     std::sort(config["config_files"].begin(), config["config_files"].end(),
-              [](const std::string &a, const std::string &b) {
+              [](const std::string &a, const std::string &b)
+              {
                   return std::filesystem::path(a).filename() < std::filesystem::path(b).filename();
               });
-    
+
     std::sort(config["doom_executables"].begin(), config["doom_executables"].end(),
-              [](const std::string &a, const std::string &b) {
+              [](const std::string &a, const std::string &b)
+              {
                   return std::filesystem::path(a).filename() < std::filesystem::path(b).filename();
               });
     // std::sort(config["doom_executables"].begin(), config["doom_executables"].end());
