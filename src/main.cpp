@@ -52,7 +52,8 @@ nlohmann::json config = {
     {"custom_params", ""},
     {"theme", "fire"},
     {"config_files", nlohmann::json::array()},
-    {"selected_config", ""}};
+    {"selected_config", ""},
+    {"font_size", 1.0f}};
 
 // Theme definitions
 struct Theme
@@ -1066,6 +1067,39 @@ void show_settings_view()
         ImGui::Spacing();
         ImGui::Spacing();
 
+        // Add a dropdown for font scale selection
+        // add font scales between 10% and 200%
+        static const std::vector<float> font_scales = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f,
+                                                       1.0f, 1.1f, 1.2f, 1.3f, 1.4f, 1.5f, 1.6f, 1.7f,
+                                                       1.8f, 1.9f, 2.0f};
+        static int selected_font_scale_index = 1; // Default to 1.0f (100%)
+
+        ImGui::Text("Font Scale:");
+        ImGui::PushItemWidth(120);
+        if (ImGui::BeginCombo("##FontScale", (std::to_string(static_cast<int>(font_scales[selected_font_scale_index] * 100)) + "%").c_str()))
+        {
+            for (int i = 0; i < font_scales.size(); ++i)
+            {
+                bool is_selected = (i == selected_font_scale_index);
+                std::string label = std::to_string(static_cast<int>(font_scales[i] * 100)) + "%";
+                if (ImGui::Selectable(label.c_str(), is_selected))
+                {
+                    selected_font_scale_index = i;
+                    ImGui::GetIO().FontGlobalScale = font_scales[i]; // Apply the font scale
+                    config["font_scale"] = font_scales[i];
+                    write_config_file(get_config_file_path(), config);
+                }
+                if (is_selected)
+                {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::PopItemWidth();
+
+        ImGui::Spacing();
+
         // Add a checkbox for pinning selected PWADs to the top with a border
         ImGui::PushStyleColor(ImGuiCol_Border, button_color);
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
@@ -1364,6 +1398,13 @@ void setup_config_file()
         config["pin_selected_pwads_to_top"] = true;
     }
     pin_selected_pwads_to_top = config["pin_selected_pwads_to_top"].get<bool>();
+
+    // Ensure font_scale field exists with default value
+    if (!config.contains("font_scale") || config["font_scale"].is_null())
+    {
+        config["font_scale"] = 1.0f;
+    }
+    ImGui::GetIO().FontGlobalScale = config["font_scale"].get<float>();
 
     // Save the config after all initializations
     write_config_file(config_file_path, config);
