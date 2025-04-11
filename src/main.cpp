@@ -121,6 +121,7 @@ SDL_Renderer *renderer;
 
 bool show_settings = false;            // Global state variable to track the visibility of the settings view
 bool pin_selected_pwads_to_top = true; // Global variable to track the pinning behavior
+static int selected_font_scale_index = 1; // Default to 1.0f (100%)
 
 #ifdef _WIN32
 #include <windows.h>
@@ -1076,7 +1077,6 @@ void show_settings_view()
         static const std::vector<float> font_scales = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f,
                                                        1.0f, 1.1f, 1.2f, 1.3f, 1.4f, 1.5f, 1.6f, 1.7f,
                                                        1.8f, 1.9f, 2.0f};
-        static int selected_font_scale_index = 1; // Default to 1.0f (100%)
 
         ImGui::Text("Font Scale:");
         ImGui::PushItemWidth(120);
@@ -1413,6 +1413,20 @@ void setup_config_file()
         config["font_scale"] = 1.0f;
     }
     ImGui::GetIO().FontGlobalScale = config["font_scale"].get<float>();
+
+    // Update the selected_font_scale_index to match the loaded font scale
+    static const std::vector<float> font_scales = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f,
+                                                   1.0f, 1.1f, 1.2f, 1.3f, 1.4f, 1.5f, 1.6f, 1.7f,
+                                                   1.8f, 1.9f, 2.0f};
+    float loaded_font_scale = config["font_scale"].get<float>();
+    for (int i = 0; i < font_scales.size(); ++i)
+    {
+        if (font_scales[i] == loaded_font_scale)
+        {
+            selected_font_scale_index = i;
+            break;
+        }
+    }
 
     // Save the config after all initializations
     write_config_file(config_file_path, config);
