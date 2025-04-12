@@ -407,17 +407,13 @@ void show_pwad_list()
     // Add a search bar next to the 'Reload' button
     static char search_buf[128] = "";
     ImGui::SameLine();
-    ImGui::PushStyleColor(ImGuiCol_Border, button_color); // Add border color
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f); // Add border size
+    ImGui::PushStyleColor(ImGuiCol_Border, button_color); 
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f); 
     ImGui::PushItemWidth(200);
-    if (ImGui::InputTextWithHint("##search_pwad", "Search PWADs...", search_buf, sizeof(search_buf)))
-    {
-        // Trigger search logic when the input changes
-        populate_pwad_list(); // Re-populate the PWAD list to apply the search filter
-    }
+    ImGui::InputTextWithHint("##search_pwad", "Search PWADs...", search_buf, sizeof(search_buf));
     ImGui::PopItemWidth();
-    ImGui::PopStyleVar(); // Remove border size
-    ImGui::PopStyleColor(); // Remove border color
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor();
 
     ImVec2 avail = ImGui::GetContentRegionAvail();
     float reserved_height = 4 * ImGui::GetFrameHeightWithSpacing() + launch_button_height;
