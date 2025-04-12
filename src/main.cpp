@@ -17,7 +17,7 @@
 #error This backend requires SDL 2.0.17+ because of SDL_RenderGeometry() function
 #endif
 
-#define VERSION "0.1.11"
+#define VERSION "0.1.12"
 
 // Global constants for file extensions
 const std::vector<std::string> WAD_EXTENSIONS = {
@@ -119,8 +119,8 @@ SDL_Texture *color_buffer_texture;
 SDL_Window *window;
 SDL_Renderer *renderer;
 
-bool show_settings = false;            // Global state variable to track the visibility of the settings view
-bool pin_selected_pwads_to_top = true; // Global variable to track the pinning behavior
+bool show_settings = false;               // Global state variable to track the visibility of the settings view
+bool pin_selected_pwads_to_top = true;    // Global variable to track the pinning behavior
 static int selected_font_scale_index = 1; // Default to 1.0f (100%)
 
 #ifdef _WIN32
@@ -407,8 +407,8 @@ void show_pwad_list()
     // Add a search bar next to the 'Reload' button
     static char search_buf[128] = "";
     ImGui::SameLine();
-    ImGui::PushStyleColor(ImGuiCol_Border, button_color); 
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f); 
+    ImGui::PushStyleColor(ImGuiCol_Border, button_color);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
     ImGui::PushItemWidth(200);
     ImGui::InputTextWithHint("##search_pwad", "Search PWADs...", search_buf, sizeof(search_buf));
     ImGui::PopItemWidth();
@@ -1280,49 +1280,62 @@ void configure_color_buffer()
                                              color_buffer_width, color_buffer_height);
 }
 
-void process_dropped_item(const char* dropped_path) {
+void process_dropped_item(const char *dropped_path)
+{
     std::filesystem::path path(dropped_path);
-    
+
     // Helper function to check if file has a WAD extension
-    auto has_wad_extension = [](const std::string &filename) {
+    auto has_wad_extension = [](const std::string &filename)
+    {
         std::string lower_filename = filename;
         std::transform(lower_filename.begin(), lower_filename.end(), lower_filename.begin(), ::tolower);
         return std::any_of(WAD_EXTENSIONS.begin(), WAD_EXTENSIONS.end(),
-                      [&lower_filename](const std::string &ext) {
-                          return lower_filename.length() >= ext.length() &&
-                                 lower_filename.substr(lower_filename.length() - ext.length()) == ext;
-                      });
+                           [&lower_filename](const std::string &ext)
+                           {
+                               return lower_filename.length() >= ext.length() &&
+                                      lower_filename.substr(lower_filename.length() - ext.length()) == ext;
+                           });
     };
-    
-    if (std::filesystem::exists(path)) {
-        if (std::filesystem::is_directory(path)) {
+
+    if (std::filesystem::exists(path))
+    {
+        if (std::filesystem::is_directory(path))
+        {
             // It's a directory - add it directly to PWAD directories
             bool already_exists = false;
-            for (const auto &dir : config["pwad_directories"]) {
-                if (dir == path.string()) {
+            for (const auto &dir : config["pwad_directories"])
+            {
+                if (dir == path.string())
+                {
                     already_exists = true;
                     break;
                 }
             }
-            
-            if (!already_exists) {
+
+            if (!already_exists)
+            {
                 config["pwad_directories"].push_back(path.string());
                 write_config_file(get_config_file_path(), config);
                 populate_pwad_list(); // Refresh the PWAD list
             }
-        } else if (std::filesystem::is_regular_file(path) && has_wad_extension(path.filename().string())) {
+        }
+        else if (std::filesystem::is_regular_file(path) && has_wad_extension(path.filename().string()))
+        {
             // It's a WAD file - add its parent directory
             std::filesystem::path parent_dir = path.parent_path();
-            
+
             bool already_exists = false;
-            for (const auto &dir : config["pwad_directories"]) {
-                if (dir == parent_dir.string()) {
+            for (const auto &dir : config["pwad_directories"])
+            {
+                if (dir == parent_dir.string())
+                {
                     already_exists = true;
                     break;
                 }
             }
-            
-            if (!already_exists) {
+
+            if (!already_exists)
+            {
                 config["pwad_directories"].push_back(parent_dir.string());
                 write_config_file(get_config_file_path(), config);
                 populate_pwad_list(); // Refresh the PWAD list
@@ -1361,9 +1374,10 @@ void update()
                 }
                 break;
             case SDL_DROPFILE:
-                if (event.drop.file != nullptr) {
+                if (event.drop.file != nullptr)
+                {
                     process_dropped_item(event.drop.file);
-                    SDL_free(event.drop.file); 
+                    SDL_free(event.drop.file);
                 }
                 break;
             }
