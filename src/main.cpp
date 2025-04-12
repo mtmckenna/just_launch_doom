@@ -1280,6 +1280,57 @@ void configure_color_buffer()
                                              color_buffer_width, color_buffer_height);
 }
 
+void process_dropped_item(const char* dropped_path) {
+    std::filesystem::path path(dropped_path);
+    
+    // Helper function to check if file has a WAD extension
+    auto has_wad_extension = [](const std::string &filename) {
+        std::string lower_filename = filename;
+        std::transform(lower_filename.begin(), lower_filename.end(), lower_filename.begin(), ::tolower);
+        return std::any_of(WAD_EXTENSIONS.begin(), WAD_EXTENSIONS.end(),
+                      [&lower_filename](const std::string &ext) {
+                          return lower_filename.length() >= ext.length() &&
+                                 lower_filename.substr(lower_filename.length() - ext.length()) == ext;
+                      });
+    };
+    
+    if (std::filesystem::exists(path)) {
+        if (std::filesystem::is_directory(path)) {
+            // It's a directory - add it directly to PWAD directories
+            bool already_exists = false;
+            for (const auto &dir : config["pwad_directories"]) {
+                if (dir == path.string()) {
+                    already_exists = true;
+                    break;
+                }
+            }
+            
+            if (!already_exists) {
+                config["pwad_directories"].push_back(path.string());
+                write_config_file(get_config_file_path(), config);
+                populate_pwad_list(); // Refresh the PWAD list
+            }
+        } else if (std::filesystem::is_regular_file(path) && has_wad_extension(path.filename().string())) {
+            // It's a WAD file - add its parent directory
+            std::filesystem::path parent_dir = path.parent_path();
+            
+            bool already_exists = false;
+            for (const auto &dir : config["pwad_directories"]) {
+                if (dir == parent_dir.string()) {
+                    already_exists = true;
+                    break;
+                }
+            }
+            
+            if (!already_exists) {
+                config["pwad_directories"].push_back(parent_dir.string());
+                write_config_file(get_config_file_path(), config);
+                populate_pwad_list(); // Refresh the PWAD list
+            }
+        }
+    }
+}
+
 void update()
 {
     ImGuiIO &io = ImGui::GetIO();
@@ -1307,6 +1358,12 @@ void update()
                     int newHeight = event.window.data2;
                     config["resolution"] = {newWidth, newHeight};
                     write_config_file(get_config_file_path(), config); // Optionally save to file immediately
+                }
+                break;
+            case SDL_DROPFILE:
+                if (event.drop.file != nullptr) {
+                    process_dropped_item(event.drop.file);
+                    SDL_free(event.drop.file); 
                 }
                 break;
             }
