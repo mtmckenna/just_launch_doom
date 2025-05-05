@@ -1,3 +1,8 @@
+#ifdef _WIN32
+#include <windows.h>
+#include <shellapi.h>
+#endif
+
 #include <iostream>
 #include <cassert>
 #include <fstream>
@@ -127,9 +132,6 @@ SDL_Renderer *renderer;
 bool show_settings = false;               // Global state variable to track the visibility of the settings view
 bool pin_selected_pwads_to_top = true;    // Global variable to track the pinning behavior
 static int selected_font_scale_index = 1; // Default to 1.0f (100%)
-
-#ifdef _WIN32
-#include <windows.h>
 
 void launch_process_win(const char *path)
 {
