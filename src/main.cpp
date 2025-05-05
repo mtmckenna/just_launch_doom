@@ -39,7 +39,12 @@ int launch_button_height = 35;
 char command_buf[1024] = "THIS IS THE COMMAND";
 char custom_params_buf[1024] = "";
 // std::vector<bool> pwads(120, false);
-std::vector<std::pair<std::string, bool>> pwads;
+struct PwadEntry {
+    std::string file_path;
+    bool is_selected;
+    std::string txt_path; // empty if no matching txt file
+};
+std::vector<PwadEntry> pwads;
 
 uint32_t *color_buffer = nullptr;
 nlohmann::json config = {
@@ -226,6 +231,19 @@ std::string get_application_support_path()
     return path;
 }
 
+void open_text_file(const std::string& txt_path)
+{
+#ifdef _WIN32
+    ShellExecuteA(NULL, "open", txt_path.c_str(), NULL, NULL, SW_SHOWNORMAL);
+#elif __APPLE__
+    std::string cmd = "open \"" + txt_path + "\"";
+    system(cmd.c_str());
+#else
+    std::string cmd = "xdg-open \"" + txt_path + "\"";
+    system(cmd.c_str());
+#endif
+}
+
 std::string get_initial_application_path()
 {
     return "/Applications";
@@ -247,9 +265,9 @@ std::string get_launch_command()
     // go through pwads and add them to the command
     for (size_t i = 0; i < pwads.size(); i++)
     {
-        if (pwads[i].second)
+        if (pwads[i].is_selected)
         {
-            pwad += "\"" + pwads[i].first + "\" ";
+            pwad += "\"" + pwads[i].file_path + "\" ";
         }
     }
 
@@ -351,7 +369,12 @@ void populate_pwad_list()
                         }
                     }
 
-                    pwads.push_back({file_path, is_selected});
+                    // Check for matching TXT file
+                    std::filesystem::path txt_path = entry.path();
+                    txt_path.replace_extension(".txt");
+                    std::string txt_file = std::filesystem::exists(txt_path) ? txt_path.string() : "";
+
+                    pwads.push_back({file_path, is_selected, txt_file});
                 }
             }
         }
@@ -361,14 +384,14 @@ void populate_pwad_list()
     if (pin_selected_pwads_to_top)
     {
         std::sort(pwads.begin(), pwads.end(),
-                  [](const auto &a, const auto &b)
+                  [](const PwadEntry &a, const PwadEntry &b)
                   {
-                      if (a.second != b.second)
+                      if (a.is_selected != b.is_selected)
                       {
-                          return a.second > b.second; // Selected PWADs first
+                          return a.is_selected > b.is_selected; // Selected PWADs first
                       }
-                      std::string a_name = std::filesystem::path(a.first).filename().string();
-                      std::string b_name = std::filesystem::path(b.first).filename().string();
+                      std::string a_name = std::filesystem::path(a.file_path).filename().string();
+                      std::string b_name = std::filesystem::path(b.file_path).filename().string();
                       std::transform(a_name.begin(), a_name.end(), a_name.begin(), ::tolower);
                       std::transform(b_name.begin(), b_name.end(), b_name.begin(), ::tolower);
                       return a_name < b_name;
@@ -377,10 +400,10 @@ void populate_pwad_list()
     else
     {
         std::sort(pwads.begin(), pwads.end(),
-                  [](const auto &a, const auto &b)
+                  [](const PwadEntry &a, const PwadEntry &b)
                   {
-                      std::string a_name = std::filesystem::path(a.first).filename().string();
-                      std::string b_name = std::filesystem::path(b.first).filename().string();
+                      std::string a_name = std::filesystem::path(a.file_path).filename().string();
+                      std::string b_name = std::filesystem::path(b.file_path).filename().string();
                       std::transform(a_name.begin(), a_name.end(), a_name.begin(), ::tolower);
                       std::transform(b_name.begin(), b_name.end(), b_name.begin(), ::tolower);
                       return a_name < b_name;
@@ -429,7 +452,7 @@ void show_pwad_list()
 
         for (size_t i = 0; i < pwads.size(); i++)
         {
-            std::string pwad_file_path = pwads[i].first;
+            std::string pwad_file_path = pwads[i].file_path;
             std::string filename = std::filesystem::path(pwad_file_path).filename().string();
 
             // Perform case-insensitive search filtering
@@ -444,26 +467,42 @@ void show_pwad_list()
             }
 
             ImGui::PushID(i);
-            if (ImGui::Checkbox(filename.c_str(), &pwads[i].second))
+
+            // Draw the checkbox (square only, no label)
+            ImGui::Checkbox("##pwad_checkbox", &pwads[i].is_selected);
+            bool hovered_checkbox = ImGui::IsItemHovered();
+
+            // Draw the filename as a selectable label (so it can be hovered separately)
+            ImGui::SameLine();
+            ImGui::TextUnformatted(filename.c_str());
+            bool hovered_label = ImGui::IsItemHovered();
+
+            // TXT button logic
+            bool hovered_txt = false;
+            if (!pwads[i].txt_path.empty())
             {
-                config["selected_pwads"] = nlohmann::json::array();
-                for (size_t j = 0; j < pwads.size(); j++)
+                ImGui::SameLine();
+                if (ImGui::SmallButton("TXT"))
                 {
-                    if (pwads[j].second)
-                    {
-                        config["selected_pwads"].push_back(pwads[j].first);
-                    }
+                    open_text_file(pwads[i].txt_path);
                 }
-                write_config_file(get_config_file_path(), config);
-                populate_pwad_list(); // Re-sort and update the list after selection change
+                set_cursor_hand();
+                hovered_txt = ImGui::IsItemHovered();
             }
 
-            if (ImGui::IsItemHovered())
+            // Show tooltips
+            if (hovered_label)
             {
                 ImGui::BeginTooltip();
                 ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-                ImGui::TextUnformatted(pwad_file_path.c_str());
+                ImGui::TextUnformatted(pwads[i].file_path.c_str());
                 ImGui::PopTextWrapPos();
+                ImGui::EndTooltip();
+            }
+            else if (hovered_txt)
+            {
+                ImGui::BeginTooltip();
+                ImGui::TextUnformatted("Open related text file");
                 ImGui::EndTooltip();
             }
 
@@ -500,9 +539,9 @@ void show_launch_button()
 
         for (size_t i = 0; i < pwads.size(); i++)
         {
-            if (pwads[i].second)
+            if (pwads[i].is_selected)
             {
-                config["selected_pwads"].push_back(pwads[i].first);
+                config["selected_pwads"].push_back(pwads[i].file_path);
             }
         }
 
@@ -1641,3 +1680,4 @@ int main(int, char **)
 
     return 0;
 }
+
