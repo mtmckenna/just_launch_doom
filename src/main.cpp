@@ -471,8 +471,6 @@ void show_pwad_list()
             // Draw the checkbox (square only, no label)
             ImGui::Checkbox("##pwad_checkbox", &pwads[i].is_selected);
             bool hovered_checkbox = ImGui::IsItemHovered();
-            set_cursor_hand();
-            
 
             // Draw the filename as a selectable label (so it can be hovered separately)
             ImGui::SameLine();
@@ -484,16 +482,12 @@ void show_pwad_list()
             if (!pwads[i].txt_path.empty())
             {
                 ImGui::SameLine();
-                ImGui::PushStyleColor(ImGuiCol_Button, button_color);
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, button_hover_color);
-                ImGui::PushStyleColor(ImGuiCol_ButtonActive, button_active_color);
                 if (ImGui::SmallButton("TXT"))
                 {
                     open_text_file(pwads[i].txt_path);
                 }
-                hovered_txt = ImGui::IsItemHovered();
                 set_cursor_hand();
-                ImGui::PopStyleColor(3);
+                hovered_txt = ImGui::IsItemHovered();
             }
 
             // Show tooltips
@@ -512,6 +506,7 @@ void show_pwad_list()
                 ImGui::EndTooltip();
             }
 
+            set_cursor_hand();
             ImGui::PopID();
         }
 
