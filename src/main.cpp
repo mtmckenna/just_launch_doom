@@ -10,6 +10,7 @@
 #include "imgui/imgui_impl_sdlrenderer2.h"
 #include "imgui-filebrowser/imfilebrowser.h"
 #include "config_migration.h"
+#include "config_utils.h"
 
 #include "fire.h"
 
@@ -203,38 +204,12 @@ void set_cursor_hand()
     }
 }
 
-std::string get_application_support_path()
-{
-#ifdef _WIN32 // Windows platform
-    const char *appDataDir = getenv("APPDATA");
-    assert(appDataDir != nullptr);
-
-    std::string path = std::string(appDataDir) + "\\" + APP_NAME;
-#elif __APPLE__ // macOS platform
-    const char *homeDir = getenv("HOME");
-    assert(homeDir != nullptr);
-
-    std::string path = std::string(homeDir) + "/Library/Application Support/" + APP_NAME;
-#else           // Other platforms (assuming Linux/Unix-like)
-    const char *homeDir = getenv("HOME");
-    assert(homeDir != nullptr);
-
-    std::string path = std::string(homeDir) + "/." + APP_NAME;
-#endif
-
-    std::filesystem::create_directories(path);
-    return path;
-}
 
 std::string get_initial_application_path()
 {
     return "/Applications";
 }
 
-std::string get_config_file_path()
-{
-    return get_application_support_path() + "/config.json";
-}
 
 std::string get_launch_command()
 {
@@ -276,40 +251,6 @@ std::string get_launch_command()
     return command;
 }
 
-bool write_config_file(const std::string &path, nlohmann::json &config)
-{
-    // Write to file
-    std::ofstream file(path);
-    if (file.is_open())
-    {
-        file << config.dump(4); // dump with 4 spaces indentation
-        file.close();
-    }
-    else
-    {
-        return false;
-    }
-
-    return true;
-}
-
-bool read_config_file(std::string &path, nlohmann::json &config)
-{
-    // if file exists, load it and put put data into config
-    // if not, create it and write some default settings
-    std::ifstream file(path);
-    if (file.is_open())
-    {
-        file >> config;
-        file.close();
-    }
-    else
-    {
-        write_config_file(path, config);
-    }
-
-    return true;
-}
 
 void populate_pwad_list()
 {
@@ -1358,19 +1299,42 @@ void update()
             switch (event.type)
             {
             case SDL_QUIT:
+                // Save current window size before quitting
+                int current_width, current_height;
+                SDL_GetWindowSize(window, &current_width, &current_height);
+                if (validate_window_size(current_width, current_height))
+                {
+                    config["resolution"] = {current_width, current_height};
+                    write_config_file(get_config_file_path(), config);
+                }
                 done = true;
                 break;
             case SDL_WINDOWEVENT:
                 if (event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(window))
+                {
+                    // Save current window size before closing
+                    int current_width, current_height;
+                    SDL_GetWindowSize(window, &current_width, &current_height);
+                    if (current_width >= 400 && current_height >= 300 && current_width <= 4096 && current_height <= 4096)
+                    {
+                        config["resolution"] = {current_width, current_height};
+                        write_config_file(get_config_file_path(), config);
+                    }
                     done = true;
+                }
                 if (event.window.event == SDL_WINDOWEVENT_RESIZED)
                 {
                     configure_color_buffer();
                     // Update the configuration with the new size
                     int newWidth = event.window.data1;
                     int newHeight = event.window.data2;
-                    config["resolution"] = {newWidth, newHeight};
-                    write_config_file(get_config_file_path(), config); // Optionally save to file immediately
+                    
+                    // Validate the new size before saving
+                    if (validate_window_size(newWidth, newHeight))
+                    {
+                        config["resolution"] = {newWidth, newHeight};
+                        // Save will happen on app exit to avoid frequent file writes during resize
+                    }
                 }
                 break;
             case SDL_DROPFILE:
@@ -1495,7 +1459,6 @@ void setup_config_file()
     {
         config["font_scale"] = 1.0f;
     }
-    ImGui::GetIO().FontGlobalScale = config["font_scale"].get<float>();
 
     // Update the selected_font_scale_index to match the loaded font scale
     static const std::vector<float> font_scales = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f,
@@ -1550,6 +1513,9 @@ int setup()
     SDL_SetHint(SDL_HINT_IME_SHOW_UI, "1");
 #endif
 
+    // Setup config first to ensure we have the correct window size
+    setup_config_file();
+
     // Create window with SDL_Renderer graphics context
     auto window_flags = (SDL_WindowFlags)(SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 
@@ -1557,8 +1523,23 @@ int setup()
     title += "Just Launch Doom v";
     title += VERSION;
 
+    // Validate window size from config
+    int window_width = config["resolution"][0];
+    int window_height = config["resolution"][1];
+    
+    // Apply default sizes for invalid values
+    apply_window_size_defaults(window_width, window_height);
+    
+    // Ensure maximum reasonable window size based on display
+    SDL_DisplayMode display_mode;
+    if (SDL_GetCurrentDisplayMode(0, &display_mode) == 0)
+    {
+        if (window_width > display_mode.w) window_width = display_mode.w * 0.9;
+        if (window_height > display_mode.h) window_height = display_mode.h * 0.9;
+    }
+
     window = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                              config["resolution"][0], config["resolution"][1], window_flags);
+                              window_width, window_height, window_flags);
 
     if (window == nullptr)
     {
@@ -1589,7 +1570,8 @@ int setup()
     ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
     ImGui_ImplSDLRenderer2_Init(renderer);
 
-    io.FontGlobalScale = 1.0;
+    // Set font scale from config (loaded earlier in setup_config_file)
+    io.FontGlobalScale = config["font_scale"].get<float>();
 
     // Configure file dialogs with appropriate filters and flags BEFORE using them
     iwad_file_dialog.SetTitle("Select IWAD");
@@ -1609,8 +1591,7 @@ int setup()
     gzdoom_file_dialog.SetTitle("Select Doom Executable");
     gzdoom_file_dialog.SetTypeFilters(EXECUTABLE_EXTENSIONS);
 
-    // Now set up config and populate lists
-    setup_config_file();
+    // Now populate lists (config was already set up earlier)
     populate_pwad_list();
 
     // Apply initial theme

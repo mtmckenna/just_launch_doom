@@ -1,7 +1,10 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 #include "../src/nlohmann/json.hpp"
+#include "../src/config_utils.h"
 #include <filesystem>
+#include <fstream>
+#include <cstdio>
 
 // Include the config migration function from config_migration.cpp
 nlohmann::json migrate_config(nlohmann::json config);
@@ -159,4 +162,97 @@ TEST_CASE("migrate_doom_executables avoids duplicate entries")
     CHECK(config["doom_executables"].size() == 1);
     CHECK(config["doom_executables"][0] == "/path/to/gzdoom");
     CHECK_FALSE(config.contains("gzdoom_filepath"));
+}
+
+// Window size persistence tests
+TEST_CASE("Window size validation works correctly")
+{
+    // Test valid window sizes
+    CHECK(validate_window_size(800, 600) == true);
+    CHECK(validate_window_size(1920, 1080) == true);
+    CHECK(validate_window_size(400, 300) == true);  // Minimum valid
+    CHECK(validate_window_size(4096, 4096) == true); // Maximum valid
+    
+    // Test invalid window sizes
+    CHECK(validate_window_size(399, 300) == false);  // Too narrow
+    CHECK(validate_window_size(400, 299) == false);  // Too short
+    CHECK(validate_window_size(4097, 4096) == false); // Too wide
+    CHECK(validate_window_size(4096, 4097) == false); // Too tall
+    CHECK(validate_window_size(0, 0) == false);      // Zero size
+    CHECK(validate_window_size(-100, -100) == false); // Negative size
+}
+
+TEST_CASE("Window size persistence in config")
+{
+    // Create a test config with window size
+    nlohmann::json test_config = {
+        {"resolution", {1024, 768}},
+        {"theme", "fire"},
+        {"custom_params", ""}
+    };
+    
+    // Verify the resolution is stored correctly
+    CHECK(test_config["resolution"][0] == 1024);
+    CHECK(test_config["resolution"][1] == 768);
+    
+    // Simulate window resize
+    test_config["resolution"] = {1280, 720};
+    
+    // Verify the new resolution is stored correctly
+    CHECK(test_config["resolution"][0] == 1280);
+    CHECK(test_config["resolution"][1] == 720);
+}
+
+TEST_CASE("Config file save and load preserves window size")
+{
+    // Create a temporary config file for testing
+    std::string temp_config_path = "/tmp/test_just_launch_doom_config.json";
+    
+    // Create test config with specific window size
+    nlohmann::json test_config = {
+        {"resolution", {1366, 768}},
+        {"theme", "dark"},
+        {"custom_params", ""},
+        {"pwad_directories", nlohmann::json::array()},
+        {"iwads", nlohmann::json::array()},
+        {"selected_iwad", ""},
+        {"selected_pwads", nlohmann::json::array()},
+        {"config_files", nlohmann::json::array()},
+        {"selected_config", ""},
+        {"doom_executables", nlohmann::json::array()},
+        {"selected_executable", ""}
+    };
+    
+    // Write config to file
+    bool write_success = write_config_file(temp_config_path, test_config);
+    CHECK(write_success);
+    
+    // Read config back from file
+    nlohmann::json loaded_config;
+    bool read_success = read_config_file(temp_config_path, loaded_config);
+    CHECK(read_success);
+    
+    // Verify window size was preserved
+    CHECK(loaded_config["resolution"][0] == 1366);
+    CHECK(loaded_config["resolution"][1] == 768);
+    
+    // Clean up test file
+    std::remove(temp_config_path.c_str());
+}
+
+TEST_CASE("Default window size fallback")
+{
+    // Test that invalid config values fall back to defaults
+    int width = 100, height = 50; // Invalid small size
+    apply_window_size_defaults(width, height);
+    
+    CHECK(width == 800);
+    CHECK(height == 600);
+    
+    // Test that valid sizes remain unchanged
+    width = 1024; height = 768;
+    apply_window_size_defaults(width, height);
+    
+    CHECK(width == 1024);
+    CHECK(height == 768);
 }
