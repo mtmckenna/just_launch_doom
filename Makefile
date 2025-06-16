@@ -115,7 +115,7 @@ $(BUILD_DIR)/tests/%.o: src/%.cpp
 	mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-test: $(TEST_OBJECTS) $(TEST_IMPL_OBJECTS)
+test: $(TEST_OBJECTS) $(TEST_IMPL_OBJECTS) $(BUILD_DIR)/tests/config_utils.o
 	$(CXX) $(CXXFLAGS) $^ -o $(BUILD_DIR)/test_runner
 	$(BUILD_DIR)/test_runner
 

@@ -10,6 +10,7 @@
 #include "imgui/imgui_impl_sdlrenderer2.h"
 #include "imgui-filebrowser/imfilebrowser.h"
 #include "config_migration.h"
+#include "config_utils.h"
 
 #include "fire.h"
 
@@ -39,12 +40,7 @@ int launch_button_height = 35;
 char command_buf[1024] = "THIS IS THE COMMAND";
 char custom_params_buf[1024] = "";
 // std::vector<bool> pwads(120, false);
-struct PwadEntry {
-    std::string file_path;
-    bool is_selected;
-    std::string txt_path; // empty if no matching txt file
-};
-std::vector<PwadEntry> pwads;
+std::vector<std::pair<std::string, bool>> pwads;
 
 uint32_t *color_buffer = nullptr;
 nlohmann::json config = {
@@ -208,51 +204,12 @@ void set_cursor_hand()
     }
 }
 
-std::string get_application_support_path()
-{
-#ifdef _WIN32 // Windows platform
-    const char *appDataDir = getenv("APPDATA");
-    assert(appDataDir != nullptr);
-
-    std::string path = std::string(appDataDir) + "\\" + APP_NAME;
-#elif __APPLE__ // macOS platform
-    const char *homeDir = getenv("HOME");
-    assert(homeDir != nullptr);
-
-    std::string path = std::string(homeDir) + "/Library/Application Support/" + APP_NAME;
-#else           // Other platforms (assuming Linux/Unix-like)
-    const char *homeDir = getenv("HOME");
-    assert(homeDir != nullptr);
-
-    std::string path = std::string(homeDir) + "/." + APP_NAME;
-#endif
-
-    std::filesystem::create_directories(path);
-    return path;
-}
-
-void open_text_file(const std::string& txt_path)
-{
-#ifdef _WIN32
-    ShellExecuteA(NULL, "open", txt_path.c_str(), NULL, NULL, SW_SHOWNORMAL);
-#elif __APPLE__
-    std::string cmd = "open \"" + txt_path + "\"";
-    system(cmd.c_str());
-#else
-    std::string cmd = "xdg-open \"" + txt_path + "\"";
-    system(cmd.c_str());
-#endif
-}
 
 std::string get_initial_application_path()
 {
     return "/Applications";
 }
 
-std::string get_config_file_path()
-{
-    return get_application_support_path() + "/config.json";
-}
 
 std::string get_launch_command()
 {
@@ -265,9 +222,9 @@ std::string get_launch_command()
     // go through pwads and add them to the command
     for (size_t i = 0; i < pwads.size(); i++)
     {
-        if (pwads[i].is_selected)
+        if (pwads[i].second)
         {
-            pwad += "\"" + pwads[i].file_path + "\" ";
+            pwad += "\"" + pwads[i].first + "\" ";
         }
     }
 
@@ -294,40 +251,6 @@ std::string get_launch_command()
     return command;
 }
 
-bool write_config_file(const std::string &path, nlohmann::json &config)
-{
-    // Write to file
-    std::ofstream file(path);
-    if (file.is_open())
-    {
-        file << config.dump(4); // dump with 4 spaces indentation
-        file.close();
-    }
-    else
-    {
-        return false;
-    }
-
-    return true;
-}
-
-bool read_config_file(std::string &path, nlohmann::json &config)
-{
-    // if file exists, load it and put put data into config
-    // if not, create it and write some default settings
-    std::ifstream file(path);
-    if (file.is_open())
-    {
-        file >> config;
-        file.close();
-    }
-    else
-    {
-        write_config_file(path, config);
-    }
-
-    return true;
-}
 
 void populate_pwad_list()
 {
@@ -369,12 +292,7 @@ void populate_pwad_list()
                         }
                     }
 
-                    // Check for matching TXT file
-                    std::filesystem::path txt_path = entry.path();
-                    txt_path.replace_extension(".txt");
-                    std::string txt_file = std::filesystem::exists(txt_path) ? txt_path.string() : "";
-
-                    pwads.push_back({file_path, is_selected, txt_file});
+                    pwads.push_back({file_path, is_selected});
                 }
             }
         }
@@ -384,14 +302,14 @@ void populate_pwad_list()
     if (pin_selected_pwads_to_top)
     {
         std::sort(pwads.begin(), pwads.end(),
-                  [](const PwadEntry &a, const PwadEntry &b)
+                  [](const auto &a, const auto &b)
                   {
-                      if (a.is_selected != b.is_selected)
+                      if (a.second != b.second)
                       {
-                          return a.is_selected > b.is_selected; // Selected PWADs first
+                          return a.second > b.second; // Selected PWADs first
                       }
-                      std::string a_name = std::filesystem::path(a.file_path).filename().string();
-                      std::string b_name = std::filesystem::path(b.file_path).filename().string();
+                      std::string a_name = std::filesystem::path(a.first).filename().string();
+                      std::string b_name = std::filesystem::path(b.first).filename().string();
                       std::transform(a_name.begin(), a_name.end(), a_name.begin(), ::tolower);
                       std::transform(b_name.begin(), b_name.end(), b_name.begin(), ::tolower);
                       return a_name < b_name;
@@ -400,10 +318,10 @@ void populate_pwad_list()
     else
     {
         std::sort(pwads.begin(), pwads.end(),
-                  [](const PwadEntry &a, const PwadEntry &b)
+                  [](const auto &a, const auto &b)
                   {
-                      std::string a_name = std::filesystem::path(a.file_path).filename().string();
-                      std::string b_name = std::filesystem::path(b.file_path).filename().string();
+                      std::string a_name = std::filesystem::path(a.first).filename().string();
+                      std::string b_name = std::filesystem::path(b.first).filename().string();
                       std::transform(a_name.begin(), a_name.end(), a_name.begin(), ::tolower);
                       std::transform(b_name.begin(), b_name.end(), b_name.begin(), ::tolower);
                       return a_name < b_name;
@@ -452,7 +370,7 @@ void show_pwad_list()
 
         for (size_t i = 0; i < pwads.size(); i++)
         {
-            std::string pwad_file_path = pwads[i].file_path;
+            std::string pwad_file_path = pwads[i].first;
             std::string filename = std::filesystem::path(pwad_file_path).filename().string();
 
             // Perform case-insensitive search filtering
@@ -467,51 +385,30 @@ void show_pwad_list()
             }
 
             ImGui::PushID(i);
-
-            // Draw the checkbox (square only, no label)
-            ImGui::Checkbox("##pwad_checkbox", &pwads[i].is_selected);
-            bool hovered_checkbox = ImGui::IsItemHovered();
-            set_cursor_hand();
-            
-
-            // Draw the filename as a selectable label (so it can be hovered separately)
-            ImGui::SameLine();
-            ImGui::TextUnformatted(filename.c_str());
-            bool hovered_label = ImGui::IsItemHovered();
-
-            // TXT button logic
-            bool hovered_txt = false;
-            if (!pwads[i].txt_path.empty())
+            if (ImGui::Checkbox(filename.c_str(), &pwads[i].second))
             {
-                ImGui::SameLine();
-                ImGui::PushStyleColor(ImGuiCol_Button, button_color);
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, button_hover_color);
-                ImGui::PushStyleColor(ImGuiCol_ButtonActive, button_active_color);
-                if (ImGui::SmallButton("TXT"))
+                config["selected_pwads"] = nlohmann::json::array();
+                for (size_t j = 0; j < pwads.size(); j++)
                 {
-                    open_text_file(pwads[i].txt_path);
+                    if (pwads[j].second)
+                    {
+                        config["selected_pwads"].push_back(pwads[j].first);
+                    }
                 }
-                hovered_txt = ImGui::IsItemHovered();
-                set_cursor_hand();
-                ImGui::PopStyleColor(3);
+                write_config_file(get_config_file_path(), config);
+                populate_pwad_list(); // Re-sort and update the list after selection change
             }
 
-            // Show tooltips
-            if (hovered_label)
+            if (ImGui::IsItemHovered())
             {
                 ImGui::BeginTooltip();
                 ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-                ImGui::TextUnformatted(pwads[i].file_path.c_str());
+                ImGui::TextUnformatted(pwad_file_path.c_str());
                 ImGui::PopTextWrapPos();
                 ImGui::EndTooltip();
             }
-            else if (hovered_txt)
-            {
-                ImGui::BeginTooltip();
-                ImGui::TextUnformatted("Open related text file");
-                ImGui::EndTooltip();
-            }
 
+            set_cursor_hand();
             ImGui::PopID();
         }
 
@@ -544,9 +441,9 @@ void show_launch_button()
 
         for (size_t i = 0; i < pwads.size(); i++)
         {
-            if (pwads[i].is_selected)
+            if (pwads[i].second)
             {
-                config["selected_pwads"].push_back(pwads[i].file_path);
+                config["selected_pwads"].push_back(pwads[i].first);
             }
         }
 
@@ -1402,19 +1299,42 @@ void update()
             switch (event.type)
             {
             case SDL_QUIT:
+                // Save current window size before quitting
+                int current_width, current_height;
+                SDL_GetWindowSize(window, &current_width, &current_height);
+                if (validate_window_size(current_width, current_height))
+                {
+                    config["resolution"] = {current_width, current_height};
+                    write_config_file(get_config_file_path(), config);
+                }
                 done = true;
                 break;
             case SDL_WINDOWEVENT:
                 if (event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(window))
+                {
+                    // Save current window size before closing
+                    int current_width, current_height;
+                    SDL_GetWindowSize(window, &current_width, &current_height);
+                    if (current_width >= 400 && current_height >= 300 && current_width <= 4096 && current_height <= 4096)
+                    {
+                        config["resolution"] = {current_width, current_height};
+                        write_config_file(get_config_file_path(), config);
+                    }
                     done = true;
+                }
                 if (event.window.event == SDL_WINDOWEVENT_RESIZED)
                 {
                     configure_color_buffer();
                     // Update the configuration with the new size
                     int newWidth = event.window.data1;
                     int newHeight = event.window.data2;
-                    config["resolution"] = {newWidth, newHeight};
-                    write_config_file(get_config_file_path(), config); // Optionally save to file immediately
+                    
+                    // Validate the new size before saving
+                    if (validate_window_size(newWidth, newHeight))
+                    {
+                        config["resolution"] = {newWidth, newHeight};
+                        // Save will happen on app exit to avoid frequent file writes during resize
+                    }
                 }
                 break;
             case SDL_DROPFILE:
@@ -1539,7 +1459,6 @@ void setup_config_file()
     {
         config["font_scale"] = 1.0f;
     }
-    ImGui::GetIO().FontGlobalScale = config["font_scale"].get<float>();
 
     // Update the selected_font_scale_index to match the loaded font scale
     static const std::vector<float> font_scales = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f,
@@ -1594,6 +1513,9 @@ int setup()
     SDL_SetHint(SDL_HINT_IME_SHOW_UI, "1");
 #endif
 
+    // Setup config first to ensure we have the correct window size
+    setup_config_file();
+
     // Create window with SDL_Renderer graphics context
     auto window_flags = (SDL_WindowFlags)(SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 
@@ -1601,8 +1523,23 @@ int setup()
     title += "Just Launch Doom v";
     title += VERSION;
 
+    // Validate window size from config
+    int window_width = config["resolution"][0];
+    int window_height = config["resolution"][1];
+    
+    // Apply default sizes for invalid values
+    apply_window_size_defaults(window_width, window_height);
+    
+    // Ensure maximum reasonable window size based on display
+    SDL_DisplayMode display_mode;
+    if (SDL_GetCurrentDisplayMode(0, &display_mode) == 0)
+    {
+        if (window_width > display_mode.w) window_width = display_mode.w * 0.9;
+        if (window_height > display_mode.h) window_height = display_mode.h * 0.9;
+    }
+
     window = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                              config["resolution"][0], config["resolution"][1], window_flags);
+                              window_width, window_height, window_flags);
 
     if (window == nullptr)
     {
@@ -1633,7 +1570,8 @@ int setup()
     ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
     ImGui_ImplSDLRenderer2_Init(renderer);
 
-    io.FontGlobalScale = 1.0;
+    // Set font scale from config (loaded earlier in setup_config_file)
+    io.FontGlobalScale = config["font_scale"].get<float>();
 
     // Configure file dialogs with appropriate filters and flags BEFORE using them
     iwad_file_dialog.SetTitle("Select IWAD");
@@ -1653,8 +1591,7 @@ int setup()
     gzdoom_file_dialog.SetTitle("Select Doom Executable");
     gzdoom_file_dialog.SetTypeFilters(EXECUTABLE_EXTENSIONS);
 
-    // Now set up config and populate lists
-    setup_config_file();
+    // Now populate lists (config was already set up earlier)
     populate_pwad_list();
 
     // Apply initial theme
@@ -1685,4 +1622,3 @@ int main(int, char **)
 
     return 0;
 }
-
