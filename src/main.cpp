@@ -1722,16 +1722,29 @@ int setup()
 
     // Apply SDL renderer hint based on user setting (fix for issue #16)
     std::string renderer_setting = config["sdl_renderer"].get<std::string>();
+    
+    if (debug_logging) {
+        std::ofstream debug_log("just_launch_doom_debug.log", std::ios::app);
+        debug_log << "=== Just Launch Doom Debug Log ===" << std::endl;
+        
+        if (renderer_setting != "auto") {
+            debug_log << "Setting SDL renderer hint to: " << renderer_setting << std::endl;
+        } else {
+            debug_log << "Using auto SDL renderer" << std::endl;
+        }
+        debug_log.close();
+    }
+    
     if (renderer_setting != "auto")
     {
-        printf("Setting SDL renderer hint to: %s\n", renderer_setting.c_str());
         SDL_SetHint(SDL_HINT_RENDER_DRIVER, renderer_setting.c_str());
-        const char* actual_hint = SDL_GetHint(SDL_HINT_RENDER_DRIVER);
-        printf("SDL renderer hint is now: %s\n", actual_hint ? actual_hint : "NULL");
-    }
-    else
-    {
-        printf("Using auto SDL renderer\n");
+        
+        if (debug_logging) {
+            std::ofstream debug_log("just_launch_doom_debug.log", std::ios::app);
+            const char* actual_hint = SDL_GetHint(SDL_HINT_RENDER_DRIVER);
+            debug_log << "SDL renderer hint is now: " << (actual_hint ? actual_hint : "NULL") << std::endl;
+            debug_log.close();
+        }
     }
 
     // Create window with SDL_Renderer graphics context
@@ -1776,10 +1789,15 @@ int setup()
     }
 
     // Debug: Show which renderer was actually created
-    SDL_RendererInfo renderer_info;
-    if (SDL_GetRendererInfo(renderer, &renderer_info) == 0)
-    {
-        printf("Successfully created SDL renderer: %s\n", renderer_info.name);
+    if (debug_logging) {
+        std::ofstream debug_log("just_launch_doom_debug.log", std::ios::app);
+        SDL_RendererInfo renderer_info;
+        if (SDL_GetRendererInfo(renderer, &renderer_info) == 0) {
+            debug_log << "Successfully created SDL renderer: " << renderer_info.name << std::endl;
+        } else {
+            debug_log << "Failed to get renderer info" << std::endl;
+        }
+        debug_log.close();
     }
 
     SDL_GetRendererOutputSize(renderer, &renderer_width, &renderer_height);
@@ -1841,8 +1859,18 @@ void clean_up()
     SDL_Quit();
 }
 
-int main(int, char **)
+bool debug_logging = false;
+
+int main(int argc, char **argv)
 {
+    // Check for debug flag
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--debug") == 0 || strcmp(argv[i], "-d") == 0) {
+            debug_logging = true;
+            break;
+        }
+    }
+    
     setup();
     update();
     clean_up();
