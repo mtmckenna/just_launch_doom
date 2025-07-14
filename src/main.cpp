@@ -1724,7 +1724,14 @@ int setup()
     std::string renderer_setting = config["sdl_renderer"].get<std::string>();
     if (renderer_setting != "auto")
     {
+        printf("Setting SDL renderer hint to: %s\n", renderer_setting.c_str());
         SDL_SetHint(SDL_HINT_RENDER_DRIVER, renderer_setting.c_str());
+        const char* actual_hint = SDL_GetHint(SDL_HINT_RENDER_DRIVER);
+        printf("SDL renderer hint is now: %s\n", actual_hint ? actual_hint : "NULL");
+    }
+    else
+    {
+        printf("Using auto SDL renderer\n");
     }
 
     // Create window with SDL_Renderer graphics context
@@ -1766,6 +1773,13 @@ int setup()
     {
         SDL_Log("Error creating SDL_Renderer!");
         return 0;
+    }
+
+    // Debug: Show which renderer was actually created
+    SDL_RendererInfo renderer_info;
+    if (SDL_GetRendererInfo(renderer, &renderer_info) == 0)
+    {
+        printf("Successfully created SDL renderer: %s\n", renderer_info.name);
     }
 
     SDL_GetRendererOutputSize(renderer, &renderer_width, &renderer_height);
