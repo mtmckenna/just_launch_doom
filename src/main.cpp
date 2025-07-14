@@ -41,7 +41,8 @@ char command_buf[1024] = "THIS IS THE COMMAND";
 char custom_params_buf[1024] = "";
 // std::vector<bool> pwads(120, false);
 // Structure to hold PWAD file info with text file availability
-struct PwadFileInfo {
+struct PwadFileInfo
+{
     std::string filepath;
     bool selected;
     std::string txt_filepath; // Empty if no txt file exists
@@ -63,7 +64,9 @@ nlohmann::json config = {
     {"theme", "fire"},
     {"config_files", nlohmann::json::array()},
     {"selected_config", ""},
-    {"font_size", 1.0f}};
+    {"font_size", 1.0f},
+    {"sdl_renderer", "auto"},
+    {"sdl_renderer_inherit", false}};
 
 // Theme definitions
 struct Theme
@@ -213,72 +216,83 @@ void set_cursor_hand()
     }
 }
 
-
 std::string get_initial_application_path()
 {
     return "/Applications";
 }
 
-
 // Function to open text files cross-platform with error handling
-bool open_text_file(const std::string& filepath) {
+bool open_text_file(const std::string &filepath)
+{
     txt_file_error_message = ""; // Clear any previous error
-    
-    #ifdef _WIN32
-        if (system(("start \"\" \"" + filepath + "\"").c_str()) == 0) {
+
+#ifdef _WIN32
+    if (system(("start \"\" \"" + filepath + "\"").c_str()) == 0)
+    {
+        return true;
+    }
+    txt_file_error_message = "Failed to open text file with Windows default application";
+    return false;
+
+#elif __APPLE__
+    if (system(("open \"" + filepath + "\"").c_str()) == 0)
+    {
+        return true;
+    }
+    txt_file_error_message = "Failed to open text file with macOS default application";
+    return false;
+
+#else // Linux
+      // 1. Check if we're in WSL and wslview is available
+    if (system("command -v wslview >/dev/null 2>&1") == 0)
+    {
+        if (system(("wslview \"" + filepath + "\"").c_str()) == 0)
+        {
             return true;
         }
-        txt_file_error_message = "Failed to open text file with Windows default application";
-        return false;
-        
-    #elif __APPLE__
-        if (system(("open \"" + filepath + "\"").c_str()) == 0) {
+    }
+
+    // 2. Try xdg-open
+    if (system("command -v xdg-open >/dev/null 2>&1") == 0)
+    {
+        if (system(("xdg-open \"" + filepath + "\"").c_str()) == 0)
+        {
             return true;
         }
-        txt_file_error_message = "Failed to open text file with macOS default application";
-        return false;
-        
-    #else // Linux
-        // 1. Check if we're in WSL and wslview is available
-        if (system("command -v wslview >/dev/null 2>&1") == 0) {
-            if (system(("wslview \"" + filepath + "\"").c_str()) == 0) {
+    }
+
+    // 3. Fallback to common text editors
+    const std::vector<std::string> editors = {"gedit", "kate", "mousepad", "nano"};
+    for (const auto &editor : editors)
+    {
+        if (system(("command -v " + editor + " >/dev/null 2>&1").c_str()) == 0)
+        {
+            if (system((editor + " \"" + filepath + "\" &").c_str()) == 0)
+            {
                 return true;
             }
         }
-        
-        // 2. Try xdg-open
-        if (system("command -v xdg-open >/dev/null 2>&1") == 0) {
-            if (system(("xdg-open \"" + filepath + "\"").c_str()) == 0) {
-                return true;
-            }
-        }
-        
-        // 3. Fallback to common text editors
-        const std::vector<std::string> editors = {"gedit", "kate", "mousepad", "nano"};
-        for (const auto& editor : editors) {
-            if (system(("command -v " + editor + " >/dev/null 2>&1").c_str()) == 0) {
-                if (system((editor + " \"" + filepath + "\" &").c_str()) == 0) {
-                    return true;
-                }
-            }
-        }
-        
-        // Set error message for Linux
-        txt_file_error_message = "No text editor found. Install: gedit, kate, mousepad, or nano";
-        return false;
-    #endif
+    }
+
+    // Set error message for Linux
+    txt_file_error_message = "No text editor found. Install: gedit, kate, mousepad, or nano";
+    return false;
+#endif
 }
 
 // Display dismissible error message for text file operations
-void show_txt_file_error() {
-    if (!txt_file_error_message.empty()) {
+void show_txt_file_error()
+{
+    if (!txt_file_error_message.empty())
+    {
         ImVec4 text_color_red = ImVec4(1.0f, 0.3f, 0.3f, 1.0f); // Match existing red color
-        
+
         ImGui::TextColored(text_color_red, "%s", txt_file_error_message.c_str());
         ImGui::SameLine();
-        
+
         // Small dismiss button following existing button patterns
-        if (ImGui::Button("OK", ImVec2(40, 0))) {
+        if (ImGui::Button("OK", ImVec2(40, 0)))
+        {
             txt_file_error_message = "";
         }
     }
@@ -323,7 +337,6 @@ std::string get_launch_command()
 
     return command;
 }
-
 
 void populate_pwad_list()
 {
@@ -370,8 +383,9 @@ void populate_pwad_list()
                     std::filesystem::path pwad_path(file_path);
                     std::string base_name = pwad_path.stem().string(); // Get filename without extension
                     std::string txt_path = (pwad_path.parent_path() / (base_name + ".txt")).string();
-                    
-                    if (std::filesystem::exists(txt_path)) {
+
+                    if (std::filesystem::exists(txt_path))
+                    {
                         txt_file_path = txt_path;
                     }
 
@@ -483,21 +497,24 @@ void show_pwad_list()
             }
 
             // Add TXT button if companion text file exists
-            if (!pwads[i].txt_filepath.empty()) {
+            if (!pwads[i].txt_filepath.empty())
+            {
                 ImGui::SameLine();
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.4f, 0.4f, 0.4f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.3f, 0.3f, 0.3f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
-                
-                if (ImGui::Button("TXT", ImVec2(35, 0))) {
+
+                if (ImGui::Button("TXT", ImVec2(35, 0)))
+                {
                     open_text_file(pwads[i].txt_filepath);
                 }
-                
+
                 set_cursor_hand();
                 ImGui::PopStyleColor(4);
-                
-                if (ImGui::IsItemHovered()) {
+
+                if (ImGui::IsItemHovered())
+                {
                     ImGui::BeginTooltip();
                     ImGui::Text("Open companion text file:");
                     ImGui::TextUnformatted(pwads[i].txt_filepath.c_str());
@@ -522,7 +539,7 @@ void show_pwad_list()
         ImGui::PopStyleColor(4);
         ImGui::EndListBox();
     }
-    
+
     // Display any text file error messages
     show_txt_file_error();
 }
@@ -1180,6 +1197,122 @@ void show_settings_view()
         ImGui::PopStyleVar();
         ImGui::PopStyleColor();
 
+        ImGui::Spacing();
+        ImGui::Spacing();
+
+        // Explanation section for SDL renderer settings
+        ImGui::TextColored(text_color_green, "Renderer Conflict Fix");
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::BeginTooltip();
+            ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+            ImGui::TextWrapped("Some Doom ports (Woof, Chocolate Doom, DSDA-Doom) may cause crashes "
+                               "when using fullscreen mode. This happens when the launcher and "
+                               "the game use different SDL renderers.");
+            ImGui::Spacing();
+            ImGui::TextWrapped("To fix: Select 'OpenGL' or 'Direct3D11' below, then enable "
+                               "'Apply renderer to launched games'. This forces both the launcher "
+                               "and games to use the same renderer.");
+            ImGui::PopTextWrapPos();
+            ImGui::EndTooltip();
+        }
+        ImGui::Separator();
+        
+        // Show restart warning for renderer settings
+        ImGui::TextColored(text_color_red, "Restart required for renderer changes to take effect");
+        ImGui::Spacing();
+
+        // Get current renderer settings for the UI controls
+        std::string current_renderer = config["sdl_renderer"].get<std::string>();
+        bool inherit_renderer = config["sdl_renderer_inherit"].get<bool>();
+
+        // Add SDL Renderer dropdown (fix for issue #16)
+        ImGui::Text("SDL Renderer:");
+        ImGui::PushItemWidth(160);
+
+        // Get available SDL renderers dynamically
+        std::vector<std::pair<std::string, std::string>> renderer_options;
+        renderer_options.push_back({"auto", "Auto (Default)"});
+
+        // Query SDL for available render drivers
+        int num_drivers = SDL_GetNumRenderDrivers();
+        for (int i = 0; i < num_drivers; i++)
+        {
+            SDL_RendererInfo info;
+            if (SDL_GetRenderDriverInfo(i, &info) == 0)
+            {
+                std::string driver_name = info.name;
+                std::string display_name = driver_name;
+                // Capitalize first letter for display
+                if (!display_name.empty())
+                {
+                    display_name[0] = std::toupper(display_name[0]);
+                }
+                renderer_options.push_back({driver_name, display_name});
+            }
+        }
+
+        int current_index = 0;
+        for (size_t i = 0; i < renderer_options.size(); i++)
+        {
+            if (current_renderer == renderer_options[i].first)
+            {
+                current_index = i;
+                break;
+            }
+        }
+
+        if (ImGui::BeginCombo("##SDLRenderer", renderer_options[current_index].second.c_str()))
+        {
+            for (size_t i = 0; i < renderer_options.size(); i++)
+            {
+                bool is_selected = (current_index == i);
+                if (ImGui::Selectable(renderer_options[i].second.c_str(), is_selected))
+                {
+                    config["sdl_renderer"] = renderer_options[i].first;
+                    write_config_file(get_config_file_path(), config);
+                }
+                if (is_selected)
+                {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
+        set_cursor_hand(); // Add hand cursor for dropdown
+        ImGui::PopItemWidth();
+
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::BeginTooltip();
+            ImGui::Text("Changes the SDL renderer used by the launcher.");
+            ImGui::EndTooltip();
+        }
+
+        ImGui::Spacing();
+
+        // Add checkbox for SDL renderer inheritance (fix for issue #16)
+        ImGui::PushStyleColor(ImGuiCol_Border, button_color);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+        if (ImGui::Checkbox("Apply renderer to launched games", &inherit_renderer))
+        {
+            config["sdl_renderer_inherit"] = inherit_renderer;
+            write_config_file(get_config_file_path(), config);
+        }
+        set_cursor_hand(); // Add hand cursor for checkbox
+        ImGui::PopStyleVar();
+        ImGui::PopStyleColor();
+
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::BeginTooltip();
+            ImGui::Text("Forces launched Doom ports to use the same renderer.");
+            ImGui::Text("This is the main fix for renderer conflicts.");
+            ImGui::EndTooltip();
+        }
+
+        ImGui::Spacing();
+
         // Add an 'Okay' button to return to the main view
         if (ImGui::Button("OK", ImVec2(100, 30)))
         {
@@ -1437,7 +1570,7 @@ void update()
                     // Update the configuration with the new size
                     int newWidth = event.window.data1;
                     int newHeight = event.window.data2;
-                    
+
                     // Validate the new size before saving
                     if (validate_window_size(newWidth, newHeight))
                     {
@@ -1569,6 +1702,18 @@ void setup_config_file()
         config["font_scale"] = 1.0f;
     }
 
+    // Ensure sdl_renderer field exists with default value
+    if (!config.contains("sdl_renderer") || config["sdl_renderer"].is_null())
+    {
+        config["sdl_renderer"] = "auto";
+    }
+
+    // Ensure sdl_renderer_inherit field exists with default value
+    if (!config.contains("sdl_renderer_inherit") || config["sdl_renderer_inherit"].is_null())
+    {
+        config["sdl_renderer_inherit"] = false;
+    }
+
     // Update the selected_font_scale_index to match the loaded font scale
     static const std::vector<float> font_scales = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f,
                                                    1.0f, 1.1f, 1.2f, 1.3f, 1.4f, 1.5f, 1.6f, 1.7f,
@@ -1625,6 +1770,26 @@ int setup()
     // Setup config first to ensure we have the correct window size
     setup_config_file();
 
+    // Apply SDL renderer hint based on user setting (fix for issue #16)
+    std::string renderer_setting = config["sdl_renderer"].get<std::string>();
+
+    if (renderer_setting != "auto")
+    {
+        SDL_SetHint(SDL_HINT_RENDER_DRIVER, renderer_setting.c_str());
+
+        // Set environment variable if inheritance is enabled
+        bool inherit_renderer = config["sdl_renderer_inherit"].get<bool>();
+        if (inherit_renderer)
+        {
+            std::string env_var = "SDL_RENDER_DRIVER=" + renderer_setting;
+#ifdef _WIN32
+            _putenv(env_var.c_str());
+#else
+            putenv(const_cast<char *>(env_var.c_str()));
+#endif
+        }
+    }
+
     // Create window with SDL_Renderer graphics context
     auto window_flags = (SDL_WindowFlags)(SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 
@@ -1635,16 +1800,18 @@ int setup()
     // Validate window size from config
     int window_width = config["resolution"][0];
     int window_height = config["resolution"][1];
-    
+
     // Apply default sizes for invalid values
     apply_window_size_defaults(window_width, window_height);
-    
+
     // Ensure maximum reasonable window size based on display
     SDL_DisplayMode display_mode;
     if (SDL_GetCurrentDisplayMode(0, &display_mode) == 0)
     {
-        if (window_width > display_mode.w) window_width = display_mode.w * 0.9;
-        if (window_height > display_mode.h) window_height = display_mode.h * 0.9;
+        if (window_width > display_mode.w)
+            window_width = display_mode.w * 0.9;
+        if (window_height > display_mode.h)
+            window_height = display_mode.h * 0.9;
     }
 
     window = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
@@ -1723,7 +1890,7 @@ void clean_up()
     SDL_Quit();
 }
 
-int main(int, char **)
+int main(int argc, char **argv)
 {
     setup();
     update();
