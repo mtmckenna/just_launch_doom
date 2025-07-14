@@ -40,7 +40,16 @@ int launch_button_height = 35;
 char command_buf[1024] = "THIS IS THE COMMAND";
 char custom_params_buf[1024] = "";
 // std::vector<bool> pwads(120, false);
-std::vector<std::pair<std::string, bool>> pwads;
+// Structure to hold PWAD file info with text file availability
+struct PwadFileInfo {
+    std::string filepath;
+    bool selected;
+    std::string txt_filepath; // Empty if no txt file exists
+};
+std::vector<PwadFileInfo> pwads;
+
+// Global variables for TXT file error messaging
+std::string txt_file_error_message = "";
 
 uint32_t *color_buffer = nullptr;
 nlohmann::json config = {
@@ -211,6 +220,70 @@ std::string get_initial_application_path()
 }
 
 
+// Function to open text files cross-platform with error handling
+bool open_text_file(const std::string& filepath) {
+    txt_file_error_message = ""; // Clear any previous error
+    
+    #ifdef _WIN32
+        if (system(("start \"\" \"" + filepath + "\"").c_str()) == 0) {
+            return true;
+        }
+        txt_file_error_message = "Failed to open text file with Windows default application";
+        return false;
+        
+    #elif __APPLE__
+        if (system(("open \"" + filepath + "\"").c_str()) == 0) {
+            return true;
+        }
+        txt_file_error_message = "Failed to open text file with macOS default application";
+        return false;
+        
+    #else // Linux
+        // 1. Check if we're in WSL and wslview is available
+        if (system("command -v wslview >/dev/null 2>&1") == 0) {
+            if (system(("wslview \"" + filepath + "\"").c_str()) == 0) {
+                return true;
+            }
+        }
+        
+        // 2. Try xdg-open
+        if (system("command -v xdg-open >/dev/null 2>&1") == 0) {
+            if (system(("xdg-open \"" + filepath + "\"").c_str()) == 0) {
+                return true;
+            }
+        }
+        
+        // 3. Fallback to common text editors
+        const std::vector<std::string> editors = {"gedit", "kate", "mousepad", "nano"};
+        for (const auto& editor : editors) {
+            if (system(("command -v " + editor + " >/dev/null 2>&1").c_str()) == 0) {
+                if (system((editor + " \"" + filepath + "\" &").c_str()) == 0) {
+                    return true;
+                }
+            }
+        }
+        
+        // Set error message for Linux
+        txt_file_error_message = "No text editor found. Install: gedit, kate, mousepad, or nano";
+        return false;
+    #endif
+}
+
+// Display dismissible error message for text file operations
+void show_txt_file_error() {
+    if (!txt_file_error_message.empty()) {
+        ImVec4 text_color_red = ImVec4(1.0f, 0.3f, 0.3f, 1.0f); // Match existing red color
+        
+        ImGui::TextColored(text_color_red, "%s", txt_file_error_message.c_str());
+        ImGui::SameLine();
+        
+        // Small dismiss button following existing button patterns
+        if (ImGui::Button("OK", ImVec2(40, 0))) {
+            txt_file_error_message = "";
+        }
+    }
+}
+
 std::string get_launch_command()
 {
     std::string command = "\"" + config["selected_executable"].get<std::string>() + "\"";
@@ -222,9 +295,9 @@ std::string get_launch_command()
     // go through pwads and add them to the command
     for (size_t i = 0; i < pwads.size(); i++)
     {
-        if (pwads[i].second)
+        if (pwads[i].selected)
         {
-            pwad += "\"" + pwads[i].first + "\" ";
+            pwad += "\"" + pwads[i].filepath + "\" ";
         }
     }
 
@@ -292,7 +365,17 @@ void populate_pwad_list()
                         }
                     }
 
-                    pwads.push_back({file_path, is_selected});
+                    // Check for companion .txt file
+                    std::string txt_file_path = "";
+                    std::filesystem::path pwad_path(file_path);
+                    std::string base_name = pwad_path.stem().string(); // Get filename without extension
+                    std::string txt_path = (pwad_path.parent_path() / (base_name + ".txt")).string();
+                    
+                    if (std::filesystem::exists(txt_path)) {
+                        txt_file_path = txt_path;
+                    }
+
+                    pwads.push_back({file_path, is_selected, txt_file_path});
                 }
             }
         }
@@ -304,12 +387,12 @@ void populate_pwad_list()
         std::sort(pwads.begin(), pwads.end(),
                   [](const auto &a, const auto &b)
                   {
-                      if (a.second != b.second)
+                      if (a.selected != b.selected)
                       {
-                          return a.second > b.second; // Selected PWADs first
+                          return a.selected > b.selected; // Selected PWADs first
                       }
-                      std::string a_name = std::filesystem::path(a.first).filename().string();
-                      std::string b_name = std::filesystem::path(b.first).filename().string();
+                      std::string a_name = std::filesystem::path(a.filepath).filename().string();
+                      std::string b_name = std::filesystem::path(b.filepath).filename().string();
                       std::transform(a_name.begin(), a_name.end(), a_name.begin(), ::tolower);
                       std::transform(b_name.begin(), b_name.end(), b_name.begin(), ::tolower);
                       return a_name < b_name;
@@ -320,8 +403,8 @@ void populate_pwad_list()
         std::sort(pwads.begin(), pwads.end(),
                   [](const auto &a, const auto &b)
                   {
-                      std::string a_name = std::filesystem::path(a.first).filename().string();
-                      std::string b_name = std::filesystem::path(b.first).filename().string();
+                      std::string a_name = std::filesystem::path(a.filepath).filename().string();
+                      std::string b_name = std::filesystem::path(b.filepath).filename().string();
                       std::transform(a_name.begin(), a_name.end(), a_name.begin(), ::tolower);
                       std::transform(b_name.begin(), b_name.end(), b_name.begin(), ::tolower);
                       return a_name < b_name;
@@ -370,7 +453,7 @@ void show_pwad_list()
 
         for (size_t i = 0; i < pwads.size(); i++)
         {
-            std::string pwad_file_path = pwads[i].first;
+            std::string pwad_file_path = pwads[i].filepath;
             std::string filename = std::filesystem::path(pwad_file_path).filename().string();
 
             // Perform case-insensitive search filtering
@@ -385,18 +468,41 @@ void show_pwad_list()
             }
 
             ImGui::PushID(i);
-            if (ImGui::Checkbox(filename.c_str(), &pwads[i].second))
+            if (ImGui::Checkbox(filename.c_str(), &pwads[i].selected))
             {
                 config["selected_pwads"] = nlohmann::json::array();
                 for (size_t j = 0; j < pwads.size(); j++)
                 {
-                    if (pwads[j].second)
+                    if (pwads[j].selected)
                     {
-                        config["selected_pwads"].push_back(pwads[j].first);
+                        config["selected_pwads"].push_back(pwads[j].filepath);
                     }
                 }
                 write_config_file(get_config_file_path(), config);
                 populate_pwad_list(); // Re-sort and update the list after selection change
+            }
+
+            // Add TXT button if companion text file exists
+            if (!pwads[i].txt_filepath.empty()) {
+                ImGui::SameLine();
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.4f, 0.4f, 0.4f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.3f, 0.3f, 0.3f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+                
+                if (ImGui::Button("TXT", ImVec2(35, 0))) {
+                    open_text_file(pwads[i].txt_filepath);
+                }
+                
+                set_cursor_hand();
+                ImGui::PopStyleColor(4);
+                
+                if (ImGui::IsItemHovered()) {
+                    ImGui::BeginTooltip();
+                    ImGui::Text("Open companion text file:");
+                    ImGui::TextUnformatted(pwads[i].txt_filepath.c_str());
+                    ImGui::EndTooltip();
+                }
             }
 
             if (ImGui::IsItemHovered())
@@ -416,6 +522,9 @@ void show_pwad_list()
         ImGui::PopStyleColor(4);
         ImGui::EndListBox();
     }
+    
+    // Display any text file error messages
+    show_txt_file_error();
 }
 
 void show_launch_button()
@@ -441,9 +550,9 @@ void show_launch_button()
 
         for (size_t i = 0; i < pwads.size(); i++)
         {
-            if (pwads[i].second)
+            if (pwads[i].selected)
             {
-                config["selected_pwads"].push_back(pwads[i].first);
+                config["selected_pwads"].push_back(pwads[i].filepath);
             }
         }
 

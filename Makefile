@@ -115,9 +115,22 @@ $(BUILD_DIR)/tests/%.o: src/%.cpp
 	mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-test: $(TEST_OBJECTS) $(TEST_IMPL_OBJECTS) $(BUILD_DIR)/tests/config_utils.o
-	$(CXX) $(CXXFLAGS) $^ -o $(BUILD_DIR)/test_runner
-	$(BUILD_DIR)/test_runner
+test:
+	@echo "Running all tests..."
+	@echo "===================================="
+	
+	@echo "Running config migration tests..."
+	$(CXX) $(CXXFLAGS) tests/config_migration_test.cpp src/config_utils.cpp src/config_migration.cpp -o $(BUILD_DIR)/config_migration_test
+	$(BUILD_DIR)/config_migration_test
+	
+	@echo ""
+	@echo "Running TXT file tests..."
+	$(CXX) $(CXXFLAGS) tests/txt_file_test.cpp -o $(BUILD_DIR)/txt_file_test
+	$(BUILD_DIR)/txt_file_test
+	
+	@echo ""
+	@echo "===================================="
+	@echo "All tests completed successfully! ✅"
 
 clean:
 	rm -rf build
