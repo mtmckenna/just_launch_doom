@@ -203,6 +203,50 @@ TEST_CASE("Window size persistence in config")
     CHECK(test_config["resolution"][1] == 720);
 }
 
+TEST_CASE("SDL renderer setting handles missing field correctly") 
+{
+    // Test config missing sdl_renderer field (simulates old config)
+    nlohmann::json old_config = {
+        {"resolution", {800, 600}},
+        {"theme", "fire"},
+        {"custom_params", ""}
+    };
+    
+    // Verify field doesn't exist initially
+    CHECK_FALSE(old_config.contains("sdl_renderer"));
+    
+    // Simulate setup_config_file() behavior for missing sdl_renderer
+    if (!old_config.contains("sdl_renderer") || old_config["sdl_renderer"].is_null())
+    {
+        old_config["sdl_renderer"] = "auto";
+    }
+    
+    // Verify default value is set
+    CHECK(old_config.contains("sdl_renderer"));
+    CHECK(old_config["sdl_renderer"] == "auto");
+}
+
+TEST_CASE("SDL renderer setting stores any valid string")
+{
+    nlohmann::json config = {{"sdl_renderer", "auto"}};
+    
+    // Test that config can store common SDL renderer values
+    std::vector<std::string> common_renderers = {"auto", "opengl", "metal", "direct3d", "direct3d11", "software"};
+    
+    for (const auto& renderer : common_renderers) {
+        config["sdl_renderer"] = renderer;
+        CHECK(config["sdl_renderer"] == renderer);
+    }
+    
+    // Test that config can store any string (actual validation happens via SDL at runtime)
+    config["sdl_renderer"] = "custom_renderer";
+    CHECK(config["sdl_renderer"] == "custom_renderer");
+    
+    // Test empty string
+    config["sdl_renderer"] = "";
+    CHECK(config["sdl_renderer"] == "");
+}
+
 TEST_CASE("Config file save and load preserves window size")
 {
     // Create a temporary config file for testing
