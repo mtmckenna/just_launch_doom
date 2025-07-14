@@ -65,7 +65,8 @@ nlohmann::json config = {
     {"config_files", nlohmann::json::array()},
     {"selected_config", ""},
     {"font_size", 1.0f},
-    {"sdl_renderer", "auto"}};
+    {"sdl_renderer", "auto"},
+    {"sdl_renderer_inherit", false}};
 
 // Theme definitions
 struct Theme
@@ -242,7 +243,7 @@ bool open_text_file(const std::string &filepath)
     return false;
 
 #else // Linux
-                                 // 1. Check if we're in WSL and wslview is available
+      // 1. Check if we're in WSL and wslview is available
     if (system("command -v wslview >/dev/null 2>&1") == 0)
     {
         if (system(("wslview \"" + filepath + "\"").c_str()) == 0)
@@ -1199,8 +1200,26 @@ void show_settings_view()
         ImGui::Spacing();
         ImGui::Spacing();
 
+        // Explanation section for SDL renderer settings
+        ImGui::TextColored(text_color_green, "Renderer Conflict Fix");
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::BeginTooltip();
+            ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+            ImGui::TextWrapped("Some Doom ports (Woof, Chocolate Doom, DSDA-Doom) may cause crashes "
+                               "when using fullscreen mode. This happens when the launcher and "
+                               "the game use different SDL renderers.");
+            ImGui::Spacing();
+            ImGui::TextWrapped("To fix: Select 'OpenGL' or 'Direct3D11' below, then enable "
+                               "'Apply renderer to launched games'. This forces both the launcher "
+                               "and games to use the same renderer.");
+            ImGui::PopTextWrapPos();
+            ImGui::EndTooltip();
+        }
+        ImGui::Separator();
+
         // Add SDL Renderer dropdown (fix for issue #16)
-        ImGui::Text("SDL Renderer (fixes source port conflicts):");
+        ImGui::Text("SDL Renderer:");
         ImGui::PushItemWidth(160);
 
         // Get available SDL renderers dynamically
@@ -1261,9 +1280,30 @@ void show_settings_view()
         {
             ImGui::BeginTooltip();
             ImGui::Text("Changes the SDL renderer used by the launcher.");
-            ImGui::Text("Try 'OpenGL' if you experience crashes");
-            ImGui::Text("when launching Doom ports with fullscreen mode.");
             ImGui::Text("Requires restart to take effect.");
+            ImGui::EndTooltip();
+        }
+
+        ImGui::Spacing();
+
+        // Add checkbox for SDL renderer inheritance (fix for issue #16)
+        bool inherit_renderer = config["sdl_renderer_inherit"].get<bool>();
+        ImGui::PushStyleColor(ImGuiCol_Border, button_color);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+        if (ImGui::Checkbox("Apply renderer to launched games", &inherit_renderer))
+        {
+            config["sdl_renderer_inherit"] = inherit_renderer;
+            write_config_file(get_config_file_path(), config);
+        }
+        set_cursor_hand(); // Add hand cursor for checkbox
+        ImGui::PopStyleVar();
+        ImGui::PopStyleColor();
+
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::BeginTooltip();
+            ImGui::Text("Forces launched Doom ports to use the same renderer.");
+            ImGui::Text("This is the main fix for renderer conflicts.");
             ImGui::EndTooltip();
         }
 
@@ -1664,6 +1704,12 @@ void setup_config_file()
         config["sdl_renderer"] = "auto";
     }
 
+    // Ensure sdl_renderer_inherit field exists with default value
+    if (!config.contains("sdl_renderer_inherit") || config["sdl_renderer_inherit"].is_null())
+    {
+        config["sdl_renderer_inherit"] = false;
+    }
+
     // Update the selected_font_scale_index to match the loaded font scale
     static const std::vector<float> font_scales = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f,
                                                    1.0f, 1.1f, 1.2f, 1.3f, 1.4f, 1.5f, 1.6f, 1.7f,
@@ -1722,28 +1768,21 @@ int setup()
 
     // Apply SDL renderer hint based on user setting (fix for issue #16)
     std::string renderer_setting = config["sdl_renderer"].get<std::string>();
-    
-    if (debug_logging) {
-        std::ofstream debug_log("just_launch_doom_debug.log", std::ios::app);
-        debug_log << "=== Just Launch Doom Debug Log ===" << std::endl;
-        
-        if (renderer_setting != "auto") {
-            debug_log << "Setting SDL renderer hint to: " << renderer_setting << std::endl;
-        } else {
-            debug_log << "Using auto SDL renderer" << std::endl;
-        }
-        debug_log.close();
-    }
-    
+
     if (renderer_setting != "auto")
     {
         SDL_SetHint(SDL_HINT_RENDER_DRIVER, renderer_setting.c_str());
-        
-        if (debug_logging) {
-            std::ofstream debug_log("just_launch_doom_debug.log", std::ios::app);
-            const char* actual_hint = SDL_GetHint(SDL_HINT_RENDER_DRIVER);
-            debug_log << "SDL renderer hint is now: " << (actual_hint ? actual_hint : "NULL") << std::endl;
-            debug_log.close();
+
+        // Set environment variable if inheritance is enabled
+        bool inherit_renderer = config["sdl_renderer_inherit"].get<bool>();
+        if (inherit_renderer)
+        {
+            std::string env_var = "SDL_RENDER_DRIVER=" + renderer_setting;
+#ifdef _WIN32
+            _putenv(env_var.c_str());
+#else
+            putenv(const_cast<char *>(env_var.c_str()));
+#endif
         }
     }
 
@@ -1786,18 +1825,6 @@ int setup()
     {
         SDL_Log("Error creating SDL_Renderer!");
         return 0;
-    }
-
-    // Debug: Show which renderer was actually created
-    if (debug_logging) {
-        std::ofstream debug_log("just_launch_doom_debug.log", std::ios::app);
-        SDL_RendererInfo renderer_info;
-        if (SDL_GetRendererInfo(renderer, &renderer_info) == 0) {
-            debug_log << "Successfully created SDL renderer: " << renderer_info.name << std::endl;
-        } else {
-            debug_log << "Failed to get renderer info" << std::endl;
-        }
-        debug_log.close();
     }
 
     SDL_GetRendererOutputSize(renderer, &renderer_width, &renderer_height);
@@ -1859,18 +1886,8 @@ void clean_up()
     SDL_Quit();
 }
 
-bool debug_logging = false;
-
 int main(int argc, char **argv)
 {
-    // Check for debug flag
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--debug") == 0 || strcmp(argv[i], "-d") == 0) {
-            debug_logging = true;
-            break;
-        }
-    }
-    
     setup();
     update();
     clean_up();
