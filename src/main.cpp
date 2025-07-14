@@ -1217,6 +1217,14 @@ void show_settings_view()
             ImGui::EndTooltip();
         }
         ImGui::Separator();
+        
+        // Show restart warning for renderer settings
+        ImGui::TextColored(text_color_red, "Restart required for renderer changes to take effect");
+        ImGui::Spacing();
+
+        // Get current renderer settings for the UI controls
+        std::string current_renderer = config["sdl_renderer"].get<std::string>();
+        bool inherit_renderer = config["sdl_renderer_inherit"].get<bool>();
 
         // Add SDL Renderer dropdown (fix for issue #16)
         ImGui::Text("SDL Renderer:");
@@ -1243,8 +1251,6 @@ void show_settings_view()
                 renderer_options.push_back({driver_name, display_name});
             }
         }
-
-        std::string current_renderer = config["sdl_renderer"].get<std::string>();
 
         int current_index = 0;
         for (size_t i = 0; i < renderer_options.size(); i++)
@@ -1280,14 +1286,12 @@ void show_settings_view()
         {
             ImGui::BeginTooltip();
             ImGui::Text("Changes the SDL renderer used by the launcher.");
-            ImGui::Text("Requires restart to take effect.");
             ImGui::EndTooltip();
         }
 
         ImGui::Spacing();
 
         // Add checkbox for SDL renderer inheritance (fix for issue #16)
-        bool inherit_renderer = config["sdl_renderer_inherit"].get<bool>();
         ImGui::PushStyleColor(ImGuiCol_Border, button_color);
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
         if (ImGui::Checkbox("Apply renderer to launched games", &inherit_renderer))
