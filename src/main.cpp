@@ -488,13 +488,14 @@ void show_pwad_list()
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.4f, 0.4f, 0.4f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.3f, 0.3f, 0.3f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
                 
                 if (ImGui::Button("TXT", ImVec2(35, 0))) {
                     open_text_file(pwads[i].txt_filepath);
                 }
                 
                 set_cursor_hand();
-                ImGui::PopStyleColor(3);
+                ImGui::PopStyleColor(4);
                 
                 if (ImGui::IsItemHovered()) {
                     ImGui::BeginTooltip();

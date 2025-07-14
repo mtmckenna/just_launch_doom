@@ -13,6 +13,10 @@ build/
 bin/
 obj/
 
+# Test executables
+tests/config_migration_test
+tests/txt_file_test
+
 # macOS specific
 .DS_Store
 .AppleDouble
