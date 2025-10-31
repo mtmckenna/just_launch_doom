@@ -88,9 +88,9 @@ $(BUILD_DIR)/$(EXECUTABLE)_x86_64: $(OBJECTS_X86_64)
 	$(CXX) -arch x86_64 -mmacosx-version-min=13.0 $(LDFLAGS_X86) $^ -o $@
 
 $(BUILD_DIR)/$(EXECUTABLE)_linux: $(OBJECTS_LINUX)
-	$(CXX) $(LDFLAGS_LINUX) $^ -o $@
+	$(CXX) $^ $(LDFLAGS_LINUX) -o $@
 
-$(BUILD_DIR)/$(EXECUTABLE)_universal: $(BUILD_DIR)/$(EXECUTABLE)_arm64 $(BUILD_DIR)/$(EXECUTABLE)_x86_64
+$(BUILD_DIR)/$(EXECUTABLE)_universal: $(BUILD_DIR)/$(EXECUTABLE)_arm64 $(BUILD_DIR)/$(EXECUTABLE)_x86_64)
 	lipo -create -output $@ $^
 
 linux: $(BUILD_DIR)/$(EXECUTABLE)_linux
