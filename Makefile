@@ -130,7 +130,7 @@ test:
 
 	@echo ""
 	@echo "Running launch command tests..."
-	$(CXX) -std=c++17 tests/launch_command_test.cpp -o $(BUILD_DIR)/launch_command_test
+	$(CXX) -std=c++17 tests/launch_command_test.cpp src/launch_utils.cpp -o $(BUILD_DIR)/launch_command_test
 	$(BUILD_DIR)/launch_command_test
 
 	@echo ""

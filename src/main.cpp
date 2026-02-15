@@ -11,6 +11,7 @@
 #include "imgui-filebrowser/imfilebrowser.h"
 #include "config_migration.h"
 #include "config_utils.h"
+#include "launch_utils.h"
 
 #include "fire.h"
 
@@ -20,12 +21,6 @@
 
 #define VERSION "0.1.13"
 
-// Global constants for file extensions
-const std::vector<std::string> WAD_EXTENSIONS = {
-    ".wad", ".iwad", ".pwad", ".kpf", ".pk3", ".pk4", ".pk7",
-    ".pke", ".lmp", ".mus", ".doom"};
-const std::vector<std::string> DEH_EXTENSIONS = {".deh", ".bex", ".hhe"};
-const std::vector<std::string> EDF_EXTENSIONS = {".edf"};
 const std::vector<std::string> CONFIG_EXTENSIONS = {".cfg", ".ini"};
 
 #ifdef _WIN32
@@ -41,14 +36,6 @@ int color_buffer_width, color_buffer_height;
 int launch_button_height = 35;
 char command_buf[1024] = "THIS IS THE COMMAND";
 char custom_params_buf[1024] = "";
-// std::vector<bool> pwads(120, false);
-// Structure to hold PWAD file info with text file availability
-struct PwadFileInfo
-{
-    std::string filepath;
-    bool selected;
-    std::string txt_filepath; // Empty if no txt file exists
-};
 std::vector<PwadFileInfo> pwads;
 
 // Global variables for TXT file error messaging
@@ -300,63 +287,14 @@ void show_txt_file_error()
     }
 }
 
-bool has_extension(const std::string &filepath, const std::vector<std::string> &extensions)
-{
-    std::string lower_filepath = filepath;
-    std::transform(lower_filepath.begin(), lower_filepath.end(), lower_filepath.begin(), ::tolower);
-    return std::any_of(extensions.begin(), extensions.end(),
-                       [&lower_filepath](const std::string &ext)
-                       {
-                           return lower_filepath.length() >= ext.length() &&
-                                  lower_filepath.substr(lower_filepath.length() - ext.length()) == ext;
-                       });
-}
-
 std::string get_launch_command()
 {
     std::string command = "\"" + config["selected_executable"].get<std::string>() + "\"";
     std::string iwad = config["selected_iwad"];
-    std::string wad_files = "";
-    std::string deh_files = "";
-    std::string edf_files = "";
     std::string custom_params = config["custom_params"];
     std::string selected_config = config["selected_config"];
 
-    // Separate selected files by type
-    for (size_t i = 0; i < pwads.size(); i++)
-    {
-        if (pwads[i].selected)
-        {
-            std::string quoted = "\"" + pwads[i].filepath + "\" ";
-            if (has_extension(pwads[i].filepath, DEH_EXTENSIONS))
-            {
-                deh_files += quoted;
-            }
-            else if (has_extension(pwads[i].filepath, EDF_EXTENSIONS))
-            {
-                edf_files += quoted;
-            }
-            else
-            {
-                wad_files += quoted;
-            }
-        }
-    }
-
-    if (!wad_files.empty())
-    {
-        command += " -file " + wad_files;
-    }
-
-    if (!deh_files.empty())
-    {
-        command += " -deh " + deh_files;
-    }
-
-    if (!edf_files.empty())
-    {
-        command += " -edf " + edf_files;
-    }
+    command += build_launch_file_args(pwads);
 
     if (!iwad.empty())
     {

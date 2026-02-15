@@ -1,78 +1,6 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
-#include <string>
-#include <vector>
-#include <algorithm>
-
-// Replicate the extension constants from main.cpp
-const std::vector<std::string> WAD_EXTENSIONS = {
-    ".wad", ".iwad", ".pwad", ".kpf", ".pk3", ".pk4", ".pk7",
-    ".pke", ".lmp", ".mus", ".doom"};
-const std::vector<std::string> DEH_EXTENSIONS = {".deh", ".bex", ".hhe"};
-const std::vector<std::string> EDF_EXTENSIONS = {".edf"};
-
-// Replicate has_extension from main.cpp
-bool has_extension(const std::string &filepath, const std::vector<std::string> &extensions)
-{
-    std::string lower_filepath = filepath;
-    std::transform(lower_filepath.begin(), lower_filepath.end(), lower_filepath.begin(), ::tolower);
-    return std::any_of(extensions.begin(), extensions.end(),
-                       [&lower_filepath](const std::string &ext)
-                       {
-                           return lower_filepath.length() >= ext.length() &&
-                                  lower_filepath.substr(lower_filepath.length() - ext.length()) == ext;
-                       });
-}
-
-// Simplified version of get_launch_command for testing argument grouping
-struct TestPwadFile
-{
-    std::string filepath;
-    bool selected;
-};
-
-std::string build_launch_args(const std::vector<TestPwadFile> &pwads)
-{
-    std::string wad_files = "";
-    std::string deh_files = "";
-    std::string edf_files = "";
-
-    for (size_t i = 0; i < pwads.size(); i++)
-    {
-        if (pwads[i].selected)
-        {
-            std::string quoted = "\"" + pwads[i].filepath + "\" ";
-            if (has_extension(pwads[i].filepath, DEH_EXTENSIONS))
-            {
-                deh_files += quoted;
-            }
-            else if (has_extension(pwads[i].filepath, EDF_EXTENSIONS))
-            {
-                edf_files += quoted;
-            }
-            else
-            {
-                wad_files += quoted;
-            }
-        }
-    }
-
-    std::string result = "";
-    if (!wad_files.empty())
-    {
-        result += " -file " + wad_files;
-    }
-    if (!deh_files.empty())
-    {
-        result += " -deh " + deh_files;
-    }
-    if (!edf_files.empty())
-    {
-        result += " -edf " + edf_files;
-    }
-
-    return result;
-}
+#include "../src/launch_utils.h"
 
 TEST_CASE("has_extension matches WAD extensions")
 {
@@ -110,12 +38,12 @@ TEST_CASE("has_extension is case-insensitive")
 
 TEST_CASE("Regular WAD files use -file flag")
 {
-    std::vector<TestPwadFile> files = {
-        {"maps.wad", true},
-        {"textures.pk3", true},
+    std::vector<PwadFileInfo> files = {
+        {"maps.wad", true, ""},
+        {"textures.pk3", true, ""},
     };
 
-    std::string result = build_launch_args(files);
+    std::string result = build_launch_file_args(files);
     CHECK(result.find("-file") != std::string::npos);
     CHECK(result.find("-deh") == std::string::npos);
     CHECK(result.find("-edf") == std::string::npos);
@@ -123,13 +51,13 @@ TEST_CASE("Regular WAD files use -file flag")
 
 TEST_CASE("DEH/BEX/HHE files use -deh flag")
 {
-    std::vector<TestPwadFile> files = {
-        {"patch.deh", true},
-        {"another.bex", true},
-        {"heretic.hhe", true},
+    std::vector<PwadFileInfo> files = {
+        {"patch.deh", true, ""},
+        {"another.bex", true, ""},
+        {"heretic.hhe", true, ""},
     };
 
-    std::string result = build_launch_args(files);
+    std::string result = build_launch_file_args(files);
     CHECK(result.find("-deh") != std::string::npos);
     CHECK(result.find("-file") == std::string::npos);
     CHECK(result.find("-edf") == std::string::npos);
@@ -140,11 +68,11 @@ TEST_CASE("DEH/BEX/HHE files use -deh flag")
 
 TEST_CASE("EDF files use -edf flag")
 {
-    std::vector<TestPwadFile> files = {
-        {"root.edf", true},
+    std::vector<PwadFileInfo> files = {
+        {"root.edf", true, ""},
     };
 
-    std::string result = build_launch_args(files);
+    std::string result = build_launch_file_args(files);
     CHECK(result.find("-edf") != std::string::npos);
     CHECK(result.find("-file") == std::string::npos);
     CHECK(result.find("-deh") == std::string::npos);
@@ -152,15 +80,15 @@ TEST_CASE("EDF files use -edf flag")
 
 TEST_CASE("Mixed file types produce correct grouped arguments")
 {
-    std::vector<TestPwadFile> files = {
-        {"maps.wad", true},
-        {"patch.deh", true},
-        {"textures.pk3", true},
-        {"root.edf", true},
-        {"another.bex", true},
+    std::vector<PwadFileInfo> files = {
+        {"maps.wad", true, ""},
+        {"patch.deh", true, ""},
+        {"textures.pk3", true, ""},
+        {"root.edf", true, ""},
+        {"another.bex", true, ""},
     };
 
-    std::string result = build_launch_args(files);
+    std::string result = build_launch_file_args(files);
 
     // All three flags should be present
     CHECK(result.find("-file") != std::string::npos);
@@ -188,12 +116,12 @@ TEST_CASE("Mixed file types produce correct grouped arguments")
 
 TEST_CASE("Unselected files are not included")
 {
-    std::vector<TestPwadFile> files = {
-        {"maps.wad", false},
-        {"patch.deh", false},
-        {"root.edf", false},
+    std::vector<PwadFileInfo> files = {
+        {"maps.wad", false, ""},
+        {"patch.deh", false, ""},
+        {"root.edf", false, ""},
     };
 
-    std::string result = build_launch_args(files);
+    std::string result = build_launch_file_args(files);
     CHECK(result.empty());
 }
