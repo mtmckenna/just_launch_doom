@@ -118,16 +118,21 @@ $(BUILD_DIR)/tests/%.o: src/%.cpp
 test:
 	@echo "Running all tests..."
 	@echo "===================================="
-	
+
 	@echo "Running config migration tests..."
 	$(CXX) $(CXXFLAGS) tests/config_migration_test.cpp src/config_utils.cpp src/config_migration.cpp -o $(BUILD_DIR)/config_migration_test
 	$(BUILD_DIR)/config_migration_test
-	
+
 	@echo ""
 	@echo "Running TXT file tests..."
 	$(CXX) $(CXXFLAGS) tests/txt_file_test.cpp -o $(BUILD_DIR)/txt_file_test
 	$(BUILD_DIR)/txt_file_test
-	
+
+	@echo ""
+	@echo "Running launch command tests..."
+	$(CXX) -std=c++17 tests/launch_command_test.cpp -o $(BUILD_DIR)/launch_command_test
+	$(BUILD_DIR)/launch_command_test
+
 	@echo ""
 	@echo "===================================="
 	@echo "All tests completed successfully! ✅"
