@@ -81,6 +81,10 @@ Temporary Items
 # Claude Code
 .claude/*
 !.claude/CLAUDE.md
+!.claude/skills/
+
+# Environment
+.env
 
 # Compiled Source #
 ############
