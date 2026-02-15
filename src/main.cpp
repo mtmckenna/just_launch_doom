@@ -11,6 +11,7 @@
 #include "imgui-filebrowser/imfilebrowser.h"
 #include "config_migration.h"
 #include "config_utils.h"
+#include "launch_utils.h"
 
 #include "fire.h"
 
@@ -18,12 +19,8 @@
 #error This backend requires SDL 2.0.17+ because of SDL_RenderGeometry() function
 #endif
 
-#define VERSION "0.1.13"
+#define VERSION "0.1.14"
 
-// Global constants for file extensions
-const std::vector<std::string> WAD_EXTENSIONS = {
-    ".wad", ".iwad", ".pwad", ".kpf", ".pk3", ".pk4", ".pk7",
-    ".pke", ".lmp", ".deh", ".bex", ".mus", ".doom"};
 const std::vector<std::string> CONFIG_EXTENSIONS = {".cfg", ".ini"};
 
 #ifdef _WIN32
@@ -39,14 +36,6 @@ int color_buffer_width, color_buffer_height;
 int launch_button_height = 35;
 char command_buf[1024] = "THIS IS THE COMMAND";
 char custom_params_buf[1024] = "";
-// std::vector<bool> pwads(120, false);
-// Structure to hold PWAD file info with text file availability
-struct PwadFileInfo
-{
-    std::string filepath;
-    bool selected;
-    std::string txt_filepath; // Empty if no txt file exists
-};
 std::vector<PwadFileInfo> pwads;
 
 // Global variables for TXT file error messaging
@@ -302,23 +291,10 @@ std::string get_launch_command()
 {
     std::string command = "\"" + config["selected_executable"].get<std::string>() + "\"";
     std::string iwad = config["selected_iwad"];
-    std::string pwad = "";
     std::string custom_params = config["custom_params"];
     std::string selected_config = config["selected_config"];
 
-    // go through pwads and add them to the command
-    for (size_t i = 0; i < pwads.size(); i++)
-    {
-        if (pwads[i].selected)
-        {
-            pwad += "\"" + pwads[i].filepath + "\" ";
-        }
-    }
-
-    if (!pwad.empty())
-    {
-        command += " -file " + pwad;
-    }
+    command += build_launch_file_args(pwads);
 
     if (!iwad.empty())
     {
@@ -342,17 +318,21 @@ void populate_pwad_list()
 {
     pwads.clear();
 
-    // Helper function to check if a file has an allowed extension
+    // Helper function to check if a file has an allowed extension (WAD, DEH, or EDF)
     auto has_allowed_extension = [](const std::string &filename)
     {
         std::string lower_filename = filename;
         std::transform(lower_filename.begin(), lower_filename.end(), lower_filename.begin(), ::tolower);
-        return std::any_of(WAD_EXTENSIONS.begin(), WAD_EXTENSIONS.end(),
-                           [&lower_filename](const std::string &ext)
-                           {
-                               return lower_filename.length() >= ext.length() &&
-                                      lower_filename.substr(lower_filename.length() - ext.length()) == ext;
-                           });
+        auto matches_ext = [&lower_filename](const std::vector<std::string> &extensions)
+        {
+            return std::any_of(extensions.begin(), extensions.end(),
+                               [&lower_filename](const std::string &ext)
+                               {
+                                   return lower_filename.length() >= ext.length() &&
+                                          lower_filename.substr(lower_filename.length() - ext.length()) == ext;
+                               });
+        };
+        return matches_ext(WAD_EXTENSIONS) || matches_ext(DEH_EXTENSIONS) || matches_ext(EDF_EXTENSIONS);
     };
 
     // go through each directory in pwad_directories
@@ -1467,17 +1447,12 @@ void process_dropped_item(const char *dropped_path)
 {
     std::filesystem::path path(dropped_path);
 
-    // Helper function to check if file has a WAD extension
+    // Helper function to check if file has an allowed extension (WAD, DEH, or EDF)
     auto has_wad_extension = [](const std::string &filename)
     {
-        std::string lower_filename = filename;
-        std::transform(lower_filename.begin(), lower_filename.end(), lower_filename.begin(), ::tolower);
-        return std::any_of(WAD_EXTENSIONS.begin(), WAD_EXTENSIONS.end(),
-                           [&lower_filename](const std::string &ext)
-                           {
-                               return lower_filename.length() >= ext.length() &&
-                                      lower_filename.substr(lower_filename.length() - ext.length()) == ext;
-                           });
+        return has_extension(filename, WAD_EXTENSIONS) ||
+               has_extension(filename, DEH_EXTENSIONS) ||
+               has_extension(filename, EDF_EXTENSIONS);
     };
 
     if (std::filesystem::exists(path))

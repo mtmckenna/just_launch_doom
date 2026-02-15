@@ -78,6 +78,10 @@ Temporary Items
 # Visual Studio Code
 .vscode/
 
+# Claude Code
+.claude/*
+!.claude/CLAUDE.md
+
 # Compiled Source #
 ############
 *.com
