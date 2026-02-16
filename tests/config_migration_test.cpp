@@ -182,69 +182,62 @@ TEST_CASE("Window size validation works correctly")
     CHECK(validate_window_size(-100, -100) == false); // Negative size
 }
 
-TEST_CASE("Window size persistence in config")
+TEST_CASE("SDL renderer setting round-trips through save/load")
 {
-    // Create a test config with window size
+    std::string temp_config_path = "/tmp/test_sdl_renderer_config.json";
+
     nlohmann::json test_config = {
-        {"resolution", {1024, 768}},
+        {"resolution", {800, 600}},
         {"theme", "fire"},
-        {"custom_params", ""}
+        {"custom_params", ""},
+        {"sdl_renderer", "auto"}
     };
-    
-    // Verify the resolution is stored correctly
-    CHECK(test_config["resolution"][0] == 1024);
-    CHECK(test_config["resolution"][1] == 768);
-    
-    // Simulate window resize
-    test_config["resolution"] = {1280, 720};
-    
-    // Verify the new resolution is stored correctly
-    CHECK(test_config["resolution"][0] == 1280);
-    CHECK(test_config["resolution"][1] == 720);
+
+    // Test common SDL renderer values survive save/load
+    std::vector<std::string> common_renderers = {"auto", "opengl", "metal", "direct3d", "direct3d11", "software"};
+
+    for (const auto &renderer_name : common_renderers)
+    {
+        test_config["sdl_renderer"] = renderer_name;
+        write_config_file(temp_config_path, test_config);
+
+        nlohmann::json loaded_config;
+        read_config_file(temp_config_path, loaded_config);
+        CHECK(loaded_config["sdl_renderer"] == renderer_name);
+    }
+
+    std::remove(temp_config_path.c_str());
 }
 
-TEST_CASE("SDL renderer setting handles missing field correctly") 
+TEST_CASE("Config without sdl_renderer gains default on save")
 {
-    // Test config missing sdl_renderer field (simulates old config)
+    std::string temp_config_path = "/tmp/test_sdl_renderer_missing.json";
+
+    // Write a config without sdl_renderer (simulates old config)
     nlohmann::json old_config = {
         {"resolution", {800, 600}},
         {"theme", "fire"},
         {"custom_params", ""}
     };
-    
-    // Verify field doesn't exist initially
-    CHECK_FALSE(old_config.contains("sdl_renderer"));
-    
-    // Simulate setup_config_file() behavior for missing sdl_renderer
-    if (!old_config.contains("sdl_renderer") || old_config["sdl_renderer"].is_null())
-    {
-        old_config["sdl_renderer"] = "auto";
-    }
-    
-    // Verify default value is set
-    CHECK(old_config.contains("sdl_renderer"));
-    CHECK(old_config["sdl_renderer"] == "auto");
-}
 
-TEST_CASE("SDL renderer setting stores any valid string")
-{
-    nlohmann::json config = {{"sdl_renderer", "auto"}};
-    
-    // Test that config can store common SDL renderer values
-    std::vector<std::string> common_renderers = {"auto", "opengl", "metal", "direct3d", "direct3d11", "software"};
-    
-    for (const auto& renderer : common_renderers) {
-        config["sdl_renderer"] = renderer;
-        CHECK(config["sdl_renderer"] == renderer);
-    }
-    
-    // Test that config can store any string (actual validation happens via SDL at runtime)
-    config["sdl_renderer"] = "custom_renderer";
-    CHECK(config["sdl_renderer"] == "custom_renderer");
-    
-    // Test empty string
-    config["sdl_renderer"] = "";
-    CHECK(config["sdl_renderer"] == "");
+    write_config_file(temp_config_path, old_config);
+
+    // Load it back — field should be missing
+    nlohmann::json loaded_config;
+    read_config_file(temp_config_path, loaded_config);
+    CHECK_FALSE(loaded_config.contains("sdl_renderer"));
+
+    // Add the default (what setup_config_file does on startup)
+    loaded_config["sdl_renderer"] = "auto";
+
+    // Save and reload — field should now persist
+    write_config_file(temp_config_path, loaded_config);
+    nlohmann::json reloaded_config;
+    read_config_file(temp_config_path, reloaded_config);
+    CHECK(reloaded_config.contains("sdl_renderer"));
+    CHECK(reloaded_config["sdl_renderer"] == "auto");
+
+    std::remove(temp_config_path.c_str());
 }
 
 TEST_CASE("Config file save and load preserves window size")
