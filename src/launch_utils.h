@@ -7,6 +7,7 @@ struct PwadFileInfo
     std::string filepath;
     bool selected;
     std::string txt_filepath; // Empty if no txt file exists
+    std::string directory;    // Source directory this file came from
 };
 
 extern const std::vector<std::string> WAD_EXTENSIONS;

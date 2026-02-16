@@ -39,8 +39,8 @@ TEST_CASE("has_extension is case-insensitive")
 TEST_CASE("Regular WAD files use -file flag")
 {
     std::vector<PwadFileInfo> files = {
-        {"maps.wad", true, ""},
-        {"textures.pk3", true, ""},
+        {"maps.wad", true, "", ""},
+        {"textures.pk3", true, "", ""},
     };
 
     std::string result = build_launch_file_args(files);
@@ -52,9 +52,9 @@ TEST_CASE("Regular WAD files use -file flag")
 TEST_CASE("DEH/BEX/HHE files use -deh flag")
 {
     std::vector<PwadFileInfo> files = {
-        {"patch.deh", true, ""},
-        {"another.bex", true, ""},
-        {"heretic.hhe", true, ""},
+        {"patch.deh", true, "", ""},
+        {"another.bex", true, "", ""},
+        {"heretic.hhe", true, "", ""},
     };
 
     std::string result = build_launch_file_args(files);
@@ -69,7 +69,7 @@ TEST_CASE("DEH/BEX/HHE files use -deh flag")
 TEST_CASE("EDF files use -edf flag")
 {
     std::vector<PwadFileInfo> files = {
-        {"root.edf", true, ""},
+        {"root.edf", true, "", ""},
     };
 
     std::string result = build_launch_file_args(files);
@@ -81,11 +81,11 @@ TEST_CASE("EDF files use -edf flag")
 TEST_CASE("Mixed file types produce correct grouped arguments")
 {
     std::vector<PwadFileInfo> files = {
-        {"maps.wad", true, ""},
-        {"patch.deh", true, ""},
-        {"textures.pk3", true, ""},
-        {"root.edf", true, ""},
-        {"another.bex", true, ""},
+        {"maps.wad", true, "", ""},
+        {"patch.deh", true, "", ""},
+        {"textures.pk3", true, "", ""},
+        {"root.edf", true, "", ""},
+        {"another.bex", true, "", ""},
     };
 
     std::string result = build_launch_file_args(files);
@@ -117,9 +117,9 @@ TEST_CASE("Mixed file types produce correct grouped arguments")
 TEST_CASE("Unselected files are not included")
 {
     std::vector<PwadFileInfo> files = {
-        {"maps.wad", false, ""},
-        {"patch.deh", false, ""},
-        {"root.edf", false, ""},
+        {"maps.wad", false, "", ""},
+        {"patch.deh", false, "", ""},
+        {"root.edf", false, "", ""},
     };
 
     std::string result = build_launch_file_args(files);

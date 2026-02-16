@@ -122,7 +122,8 @@ SDL_Window *window;
 SDL_Renderer *renderer;
 
 bool show_settings = false;               // Global state variable to track the visibility of the settings view
-bool pin_selected_pwads_to_top = true;    // Global variable to track the pinning behavior
+bool pin_selected_pwads_to_top = true;       // Global variable to track the pinning behavior
+bool group_pwads_by_directory = true;        // Global variable to track directory grouping
 static int selected_font_scale_index = 1; // Default to 1.0f (100%)
 
 #ifdef _WIN32
@@ -369,41 +370,44 @@ void populate_pwad_list()
                         txt_file_path = txt_path;
                     }
 
-                    pwads.push_back({file_path, is_selected, txt_file_path});
+                    pwads.push_back({file_path, is_selected, txt_file_path, dir.get<std::string>()});
                 }
             }
         }
     }
 
-    // Sort the pwads by selection status first, then by filename
-    if (pin_selected_pwads_to_top)
+    // Build a map from directory path to its index in config for stable ordering
+    std::map<std::string, int> dir_order;
+    for (size_t i = 0; i < config["pwad_directories"].size(); i++)
     {
-        std::sort(pwads.begin(), pwads.end(),
-                  [](const auto &a, const auto &b)
-                  {
-                      if (a.selected != b.selected)
-                      {
-                          return a.selected > b.selected; // Selected PWADs first
-                      }
-                      std::string a_name = std::filesystem::path(a.filepath).filename().string();
-                      std::string b_name = std::filesystem::path(b.filepath).filename().string();
-                      std::transform(a_name.begin(), a_name.end(), a_name.begin(), ::tolower);
-                      std::transform(b_name.begin(), b_name.end(), b_name.begin(), ::tolower);
-                      return a_name < b_name;
-                  });
+        dir_order[config["pwad_directories"][i].get<std::string>()] = i;
     }
-    else
-    {
-        std::sort(pwads.begin(), pwads.end(),
-                  [](const auto &a, const auto &b)
+
+    // Sort the pwads by selection status first (if pinning), then by directory (if grouping), then by filename
+    std::sort(pwads.begin(), pwads.end(),
+              [&dir_order](const auto &a, const auto &b)
+              {
+                  // Pin selected PWADs to top if enabled
+                  if (pin_selected_pwads_to_top && a.selected != b.selected)
                   {
-                      std::string a_name = std::filesystem::path(a.filepath).filename().string();
-                      std::string b_name = std::filesystem::path(b.filepath).filename().string();
-                      std::transform(a_name.begin(), a_name.end(), a_name.begin(), ::tolower);
-                      std::transform(b_name.begin(), b_name.end(), b_name.begin(), ::tolower);
-                      return a_name < b_name;
-                  });
-    }
+                      return a.selected > b.selected;
+                  }
+
+                  // Group by directory if enabled
+                  if (group_pwads_by_directory && a.directory != b.directory)
+                  {
+                      int a_order = dir_order.count(a.directory) ? dir_order[a.directory] : 9999;
+                      int b_order = dir_order.count(b.directory) ? dir_order[b.directory] : 9999;
+                      return a_order < b_order;
+                  }
+
+                  // Sort alphabetically by filename
+                  std::string a_name = std::filesystem::path(a.filepath).filename().string();
+                  std::string b_name = std::filesystem::path(b.filepath).filename().string();
+                  std::transform(a_name.begin(), a_name.end(), a_name.begin(), ::tolower);
+                  std::transform(b_name.begin(), b_name.end(), b_name.begin(), ::tolower);
+                  return a_name < b_name;
+              });
 }
 
 void show_pwad_list()
@@ -445,6 +449,11 @@ void show_pwad_list()
         ImGui::PushStyleColor(ImGuiCol_Border, button_color);
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
 
+        // Track current directory for rendering headers
+        std::string current_directory = "";
+        bool show_directory_headers = group_pwads_by_directory && config["pwad_directories"].size() > 1;
+        bool current_directory_collapsed = false;
+
         for (size_t i = 0; i < pwads.size(); i++)
         {
             std::string pwad_file_path = pwads[i].filepath;
@@ -459,6 +468,22 @@ void show_pwad_list()
             if (!lower_search.empty() && lower_filename.find(lower_search) == std::string::npos)
             {
                 continue; // Skip items that don't match the search
+            }
+
+            // Render collapsible directory header when directory changes (skip for pinned selected items)
+            if (show_directory_headers && !(pin_selected_pwads_to_top && pwads[i].selected))
+            {
+                if (pwads[i].directory != current_directory)
+                {
+                    current_directory = pwads[i].directory;
+                    std::string dir_name = std::filesystem::path(current_directory).filename().string();
+                    ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+                    current_directory_collapsed = !ImGui::CollapsingHeader(dir_name.c_str());
+                }
+                if (current_directory_collapsed)
+                {
+                    continue;
+                }
             }
 
             ImGui::PushID(i);
@@ -1178,6 +1203,21 @@ void show_settings_view()
         ImGui::PopStyleColor();
 
         ImGui::Spacing();
+
+        // Add a checkbox for grouping PWADs by directory
+        ImGui::PushStyleColor(ImGuiCol_Border, button_color);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+        if (ImGui::Checkbox("Group PWADs by Directory", &group_pwads_by_directory))
+        {
+            config["group_pwads_by_directory"] = group_pwads_by_directory;
+            write_config_file(get_config_file_path(), config);
+            populate_pwad_list(); // Resort the PWAD list based on the new checkbox value
+        }
+        set_cursor_hand(); // Add hand cursor for checkbox
+        ImGui::PopStyleVar();
+        ImGui::PopStyleColor();
+
+        ImGui::Spacing();
         ImGui::Spacing();
 
         // Explanation section for SDL renderer settings
@@ -1670,6 +1710,13 @@ void setup_config_file()
         config["pin_selected_pwads_to_top"] = true;
     }
     pin_selected_pwads_to_top = config["pin_selected_pwads_to_top"].get<bool>();
+
+    // Ensure group_pwads_by_directory field exists with default value
+    if (!config.contains("group_pwads_by_directory") || config["group_pwads_by_directory"].is_null())
+    {
+        config["group_pwads_by_directory"] = true;
+    }
+    group_pwads_by_directory = config["group_pwads_by_directory"].get<bool>();
 
     // Ensure font_scale field exists with default value
     if (!config.contains("font_scale") || config["font_scale"].is_null())
