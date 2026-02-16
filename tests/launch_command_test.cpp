@@ -125,3 +125,36 @@ TEST_CASE("Unselected files are not included")
     std::string result = build_launch_file_args(files);
     CHECK(result.empty());
 }
+
+TEST_CASE("build_display_names returns filename for unique paths")
+{
+    std::vector<std::string> paths = {"/dir1/doom.wad", "/dir2/heretic.wad"};
+    auto names = build_display_names(paths);
+    CHECK(names["/dir1/doom.wad"] == "doom.wad");
+    CHECK(names["/dir2/heretic.wad"] == "heretic.wad");
+}
+
+TEST_CASE("build_display_names disambiguates duplicate filenames with numbers")
+{
+    std::vector<std::string> paths = {"/beta/heretic.wad", "/alpha/heretic.wad"};
+    auto names = build_display_names(paths);
+    // Alphabetical by full path: /alpha/... gets (1), /beta/... gets (2)
+    CHECK(names["/alpha/heretic.wad"] == "heretic.wad (1)");
+    CHECK(names["/beta/heretic.wad"] == "heretic.wad (2)");
+}
+
+TEST_CASE("build_display_names handles mix of unique and duplicate filenames")
+{
+    std::vector<std::string> paths = {"/dir1/doom.wad", "/dir2/doom.wad", "/dir3/heretic.wad"};
+    auto names = build_display_names(paths);
+    CHECK(names["/dir1/doom.wad"] == "doom.wad (1)");
+    CHECK(names["/dir2/doom.wad"] == "doom.wad (2)");
+    CHECK(names["/dir3/heretic.wad"] == "heretic.wad");
+}
+
+TEST_CASE("build_display_names handles empty input")
+{
+    std::vector<std::string> paths = {};
+    auto names = build_display_names(paths);
+    CHECK(names.empty());
+}

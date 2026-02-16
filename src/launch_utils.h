@@ -1,4 +1,5 @@
 #pragma once
+#include <map>
 #include <string>
 #include <vector>
 
@@ -16,3 +17,4 @@ extern const std::vector<std::string> EDF_EXTENSIONS;
 
 bool has_extension(const std::string &filepath, const std::vector<std::string> &extensions);
 std::string build_launch_file_args(const std::vector<PwadFileInfo> &pwads);
+std::map<std::string, std::string> build_display_names(const std::vector<std::string> &paths);
