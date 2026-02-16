@@ -6,24 +6,28 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ENV_FILE="$SCRIPT_DIR/.env"
 BUILD_DIR="$SCRIPT_DIR/build"
 DRY_RUN=false
+NOTES=""
 
 # --- Helpers ---
 info() { echo "==> $1"; }
 error() { echo "ERROR: $1" >&2; exit 1; }
 
 # --- Parse args ---
-for arg in "$@"; do
-    case "$arg" in
+while [ $# -gt 0 ]; do
+    case "$1" in
         --dry-run) DRY_RUN=true ;;
-        v*) VERSION="$arg" ;;
-        *) error "Unknown argument: $arg" ;;
+        --notes) shift; NOTES="$1" ;;
+        v*) VERSION="$1" ;;
+        *) error "Unknown argument: $1" ;;
     esac
+    shift
 done
 
 if [ -z "$VERSION" ]; then
-    echo "Usage: $0 <version> [--dry-run]"
+    echo "Usage: $0 <version> [--notes \"release notes\"] [--dry-run]"
     echo "Example: $0 v0.1.14"
-    echo "         $0 v0.1.14 --dry-run  # build everything but skip tag push and GitHub release"
+    echo "         $0 v0.1.14 --notes \"Bug fixes and performance improvements\""
+    echo "         $0 v0.1.14 --dry-run"
     exit 1
 fi
 
@@ -100,7 +104,7 @@ else
         "$BUILD_DIR/JustLaunchDoom-${VERSION}-Linux.zip" \
         "$BUILD_DIR/JustLaunchDoom-${VERSION}-Win.zip" \
         --title "$VERSION" \
-        --notes ""
+        --notes "$NOTES"
 
     info "Done! Release $VERSION created: https://github.com/mtmckenna/just-launch-doom/releases/tag/$VERSION"
 fi
