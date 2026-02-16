@@ -38,10 +38,7 @@ TEST_CASE("has_extension is case-insensitive")
 
 TEST_CASE("Regular WAD files use -file flag")
 {
-    std::vector<PwadFileInfo> files = {
-        {"maps.wad", true, "", ""},
-        {"textures.pk3", true, "", ""},
-    };
+    std::vector<std::string> files = {"maps.wad", "textures.pk3"};
 
     std::string result = build_launch_file_args(files);
     CHECK(result.find("-file") != std::string::npos);
@@ -51,11 +48,7 @@ TEST_CASE("Regular WAD files use -file flag")
 
 TEST_CASE("DEH/BEX/HHE files use -deh flag")
 {
-    std::vector<PwadFileInfo> files = {
-        {"patch.deh", true, "", ""},
-        {"another.bex", true, "", ""},
-        {"heretic.hhe", true, "", ""},
-    };
+    std::vector<std::string> files = {"patch.deh", "another.bex", "heretic.hhe"};
 
     std::string result = build_launch_file_args(files);
     CHECK(result.find("-deh") != std::string::npos);
@@ -68,9 +61,7 @@ TEST_CASE("DEH/BEX/HHE files use -deh flag")
 
 TEST_CASE("EDF files use -edf flag")
 {
-    std::vector<PwadFileInfo> files = {
-        {"root.edf", true, "", ""},
-    };
+    std::vector<std::string> files = {"root.edf"};
 
     std::string result = build_launch_file_args(files);
     CHECK(result.find("-edf") != std::string::npos);
@@ -80,13 +71,8 @@ TEST_CASE("EDF files use -edf flag")
 
 TEST_CASE("Mixed file types produce correct grouped arguments")
 {
-    std::vector<PwadFileInfo> files = {
-        {"maps.wad", true, "", ""},
-        {"patch.deh", true, "", ""},
-        {"textures.pk3", true, "", ""},
-        {"root.edf", true, "", ""},
-        {"another.bex", true, "", ""},
-    };
+    std::vector<std::string> files = {
+        "maps.wad", "patch.deh", "textures.pk3", "root.edf", "another.bex"};
 
     std::string result = build_launch_file_args(files);
 
@@ -114,16 +100,26 @@ TEST_CASE("Mixed file types produce correct grouped arguments")
     CHECK(result.find("root.edf") != std::string::npos);
 }
 
-TEST_CASE("Unselected files are not included")
+TEST_CASE("Empty file list produces empty result")
 {
-    std::vector<PwadFileInfo> files = {
-        {"maps.wad", false, "", ""},
-        {"patch.deh", false, "", ""},
-        {"root.edf", false, "", ""},
-    };
+    std::vector<std::string> files = {};
 
     std::string result = build_launch_file_args(files);
     CHECK(result.empty());
+}
+
+TEST_CASE("File order is preserved within each flag group")
+{
+    std::vector<std::string> files = {"z_last.wad", "a_first.wad", "m_middle.wad"};
+
+    std::string result = build_launch_file_args(files);
+
+    // Files should appear in the order they were passed, not alphabetically
+    size_t z_pos = result.find("z_last.wad");
+    size_t a_pos = result.find("a_first.wad");
+    size_t m_pos = result.find("m_middle.wad");
+    CHECK(z_pos < a_pos);
+    CHECK(a_pos < m_pos);
 }
 
 TEST_CASE("build_display_names returns filename for unique paths")

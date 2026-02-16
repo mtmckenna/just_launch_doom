@@ -296,7 +296,12 @@ std::string get_launch_command()
     std::string custom_params = config["custom_params"];
     std::string selected_config = config["selected_config"];
 
-    command += build_launch_file_args(pwads);
+    std::vector<std::string> selected_paths;
+    for (const auto &path : config["selected_pwads"])
+    {
+        selected_paths.push_back(path.get<std::string>());
+    }
+    command += build_launch_file_args(selected_paths);
 
     if (!iwad.empty())
     {
@@ -384,14 +389,29 @@ void populate_pwad_list()
         dir_order[config["pwad_directories"][i].get<std::string>()] = i;
     }
 
+    // Build a map from filepath to selection order index
+    std::map<std::string, int> selection_order;
+    for (size_t i = 0; i < config["selected_pwads"].size(); i++)
+    {
+        selection_order[config["selected_pwads"][i].get<std::string>()] = i;
+    }
+
     // Sort the pwads by selection status first (if pinning), then by directory (if grouping), then by filename
     std::sort(pwads.begin(), pwads.end(),
-              [&dir_order](const auto &a, const auto &b)
+              [&dir_order, &selection_order](const auto &a, const auto &b)
               {
                   // Pin selected PWADs to top if enabled
                   if (pin_selected_pwads_to_top && a.selected != b.selected)
                   {
                       return a.selected > b.selected;
+                  }
+
+                  // When both are selected and pinned, sort by selection order
+                  if (pin_selected_pwads_to_top && a.selected && b.selected)
+                  {
+                      int a_sel = selection_order.count(a.filepath) ? selection_order[a.filepath] : 9999;
+                      int b_sel = selection_order.count(b.filepath) ? selection_order[b.filepath] : 9999;
+                      return a_sel < b_sel;
                   }
 
                   // Group by directory if enabled
@@ -490,12 +510,22 @@ void show_pwad_list()
             ImGui::PushID(i);
             if (ImGui::Checkbox(filename.c_str(), &pwads[i].selected))
             {
-                config["selected_pwads"] = nlohmann::json::array();
-                for (size_t j = 0; j < pwads.size(); j++)
+                if (pwads[i].selected)
                 {
-                    if (pwads[j].selected)
+                    // Append newly selected file to preserve order
+                    config["selected_pwads"].push_back(pwads[i].filepath);
+                }
+                else
+                {
+                    // Remove deselected file
+                    auto &arr = config["selected_pwads"];
+                    for (auto it = arr.begin(); it != arr.end(); ++it)
                     {
-                        config["selected_pwads"].push_back(pwads[j].filepath);
+                        if (*it == pwads[i].filepath)
+                        {
+                            arr.erase(it);
+                            break;
+                        }
                     }
                 }
                 write_config_file(get_config_file_path(), config);
@@ -569,15 +599,6 @@ void show_launch_button()
     {
         std::string cmd = get_launch_command();
         config["cmd"] = cmd;
-        config["selected_pwads"] = nlohmann::json::array();
-
-        for (size_t i = 0; i < pwads.size(); i++)
-        {
-            if (pwads[i].selected)
-            {
-                config["selected_pwads"].push_back(pwads[i].filepath);
-            }
-        }
 
 #ifdef _WIN32
         launch_process_win(cmd.c_str());

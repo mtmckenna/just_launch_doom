@@ -20,29 +20,26 @@ bool has_extension(const std::string &filepath, const std::vector<std::string> &
                        });
 }
 
-std::string build_launch_file_args(const std::vector<PwadFileInfo> &pwads)
+std::string build_launch_file_args(const std::vector<std::string> &selected_paths)
 {
     std::string wad_files = "";
     std::string deh_files = "";
     std::string edf_files = "";
 
-    for (size_t i = 0; i < pwads.size(); i++)
+    for (const auto &filepath : selected_paths)
     {
-        if (pwads[i].selected)
+        std::string quoted = "\"" + filepath + "\" ";
+        if (has_extension(filepath, DEH_EXTENSIONS))
         {
-            std::string quoted = "\"" + pwads[i].filepath + "\" ";
-            if (has_extension(pwads[i].filepath, DEH_EXTENSIONS))
-            {
-                deh_files += quoted;
-            }
-            else if (has_extension(pwads[i].filepath, EDF_EXTENSIONS))
-            {
-                edf_files += quoted;
-            }
-            else
-            {
-                wad_files += quoted;
-            }
+            deh_files += quoted;
+        }
+        else if (has_extension(filepath, EDF_EXTENSIONS))
+        {
+            edf_files += quoted;
+        }
+        else
+        {
+            wad_files += quoted;
         }
     }
 
