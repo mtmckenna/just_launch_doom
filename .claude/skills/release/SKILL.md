@@ -11,19 +11,20 @@ Build and publish a release of Just Launch Doom for Mac, Linux, and Windows.
    ```
    If not on `main` or tree is dirty, stop and tell the user.
 
-2. Read the current version from `src/main.cpp` (look for `#define VERSION`).
+2. Determine the version:
+   - Read the current version from `src/main.cpp` (look for `#define VERSION`).
+   - Find the latest release tag: `gh release list --limit 1`
+   - Compare the two. If they match, suggest bumping the patch number. If they differ, something may be off — tell the user what you found and ask them to clarify.
+   - **Ask the user to confirm the version number before proceeding.** Do not continue until confirmed.
 
-3. Ask the user what the new version should be (suggest bumping the patch number).
-
-4. Generate release notes:
-   - Find the previous release tag: `gh release list --limit 1`
-   - Get the commit log since that tag: `git log {previous_tag}..HEAD --oneline`
+3. Generate release notes:
+   - Get the commit log since the last release tag: `git log {previous_tag}..HEAD --oneline`
    - Write concise, user-facing release notes summarizing the changes. Group by category (e.g. "New features", "Bug fixes", "Improvements") if applicable. Skip internal/CI changes. Use markdown bullet points.
-   - Show the draft notes to the user and ask for approval or edits.
+   - **Show the draft notes to the user and ask for approval or edits.** Do not continue until confirmed.
 
-5. Ask the user if they want a dry run first or go straight to release.
+4. Ask the user if they want a dry run first or go straight to release.
 
-6. Run the release script:
+5. Run the release script:
    ```bash
    ./release.sh v{version} --notes "{approved notes}"
    ```
@@ -32,7 +33,7 @@ Build and publish a release of Just Launch Doom for Mac, Linux, and Windows.
    ./release.sh v{version} --dry-run
    ```
 
-7. After a successful release, verify it was created:
+6. After a successful release, verify it was created:
    ```bash
    gh release view v{version}
    ```
