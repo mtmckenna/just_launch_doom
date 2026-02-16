@@ -284,6 +284,74 @@ TEST_CASE("Config file save and load preserves window size")
     std::remove(temp_config_path.c_str());
 }
 
+TEST_CASE("group_pwads_by_directory save/load round-trip preserves value")
+{
+    std::string temp_config_path = "/tmp/test_group_pwads_config.json";
+
+    // Test with false
+    nlohmann::json test_config = {
+        {"resolution", {800, 600}},
+        {"theme", "fire"},
+        {"custom_params", ""},
+        {"pwad_directories", nlohmann::json::array()},
+        {"iwads", nlohmann::json::array()},
+        {"selected_iwad", ""},
+        {"selected_pwads", nlohmann::json::array()},
+        {"config_files", nlohmann::json::array()},
+        {"selected_config", ""},
+        {"doom_executables", nlohmann::json::array()},
+        {"selected_executable", ""},
+        {"group_pwads_by_directory", false}
+    };
+
+    bool write_success = write_config_file(temp_config_path, test_config);
+    CHECK(write_success);
+
+    nlohmann::json loaded_config;
+    bool read_success = read_config_file(temp_config_path, loaded_config);
+    CHECK(read_success);
+    CHECK(loaded_config["group_pwads_by_directory"] == false);
+
+    // Test with true
+    test_config["group_pwads_by_directory"] = true;
+    write_config_file(temp_config_path, test_config);
+    read_config_file(temp_config_path, loaded_config);
+    CHECK(loaded_config["group_pwads_by_directory"] == true);
+
+    std::remove(temp_config_path.c_str());
+}
+
+TEST_CASE("Config without group_pwads_by_directory gains default on save")
+{
+    std::string temp_config_path = "/tmp/test_group_pwads_missing.json";
+
+    // Write a config that doesn't have the field (simulates old config)
+    nlohmann::json old_config = {
+        {"resolution", {800, 600}},
+        {"theme", "fire"},
+        {"custom_params", ""}
+    };
+
+    write_config_file(temp_config_path, old_config);
+
+    // Load it back — field should be missing
+    nlohmann::json loaded_config;
+    read_config_file(temp_config_path, loaded_config);
+    CHECK_FALSE(loaded_config.contains("group_pwads_by_directory"));
+
+    // Add the default (what setup_config_file does on startup)
+    loaded_config["group_pwads_by_directory"] = true;
+
+    // Save and reload — field should now persist
+    write_config_file(temp_config_path, loaded_config);
+    nlohmann::json reloaded_config;
+    read_config_file(temp_config_path, reloaded_config);
+    CHECK(reloaded_config.contains("group_pwads_by_directory"));
+    CHECK(reloaded_config["group_pwads_by_directory"] == true);
+
+    std::remove(temp_config_path.c_str());
+}
+
 TEST_CASE("Default window size fallback")
 {
     // Test that invalid config values fall back to defaults
