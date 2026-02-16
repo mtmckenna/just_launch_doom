@@ -452,6 +452,7 @@ void show_pwad_list()
         // Track current directory for rendering headers
         std::string current_directory = "";
         bool show_directory_headers = group_pwads_by_directory && config["pwad_directories"].size() > 1;
+        bool current_directory_collapsed = false;
 
         for (size_t i = 0; i < pwads.size(); i++)
         {
@@ -469,14 +470,19 @@ void show_pwad_list()
                 continue; // Skip items that don't match the search
             }
 
-            // Render directory header when directory changes (skip for pinned selected items)
+            // Render collapsible directory header when directory changes (skip for pinned selected items)
             if (show_directory_headers && !(pin_selected_pwads_to_top && pwads[i].selected))
             {
                 if (pwads[i].directory != current_directory)
                 {
                     current_directory = pwads[i].directory;
                     std::string dir_name = std::filesystem::path(current_directory).filename().string();
-                    ImGui::SeparatorText(dir_name.c_str());
+                    ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+                    current_directory_collapsed = !ImGui::CollapsingHeader(dir_name.c_str());
+                }
+                if (current_directory_collapsed)
+                {
+                    continue;
                 }
             }
 
