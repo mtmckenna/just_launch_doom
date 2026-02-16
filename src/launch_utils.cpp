@@ -1,5 +1,6 @@
 #include "launch_utils.h"
 #include <algorithm>
+#include <filesystem>
 
 const std::vector<std::string> WAD_EXTENSIONS = {
     ".wad", ".iwad", ".pwad", ".kpf", ".pk3", ".pk4", ".pk7",
@@ -60,4 +61,41 @@ std::string build_launch_file_args(const std::vector<PwadFileInfo> &pwads)
     }
 
     return result;
+}
+
+std::map<std::string, std::string> build_display_names(const std::vector<std::string> &paths)
+{
+    std::map<std::string, std::string> display_names;
+    std::map<std::string, int> filename_counts;
+
+    for (const auto &path : paths)
+    {
+        std::string filename = std::filesystem::path(path).filename().string();
+        filename_counts[filename]++;
+    }
+
+    std::map<std::string, std::vector<std::string>> filename_paths;
+    for (const auto &path : paths)
+    {
+        std::string filename = std::filesystem::path(path).filename().string();
+        filename_paths[filename].push_back(path);
+    }
+
+    for (auto &[filename, grouped_paths] : filename_paths)
+    {
+        std::sort(grouped_paths.begin(), grouped_paths.end());
+        for (size_t j = 0; j < grouped_paths.size(); j++)
+        {
+            if (grouped_paths.size() > 1)
+            {
+                display_names[grouped_paths[j]] = filename + " (" + std::to_string(j + 1) + ")";
+            }
+            else
+            {
+                display_names[grouped_paths[j]] = filename;
+            }
+        }
+    }
+
+    return display_names;
 }

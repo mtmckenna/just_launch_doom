@@ -3,6 +3,7 @@
 #include <fstream>
 #include <SDL.h>
 #include <filesystem>
+#include <map>
 
 #include "nlohmann/json.hpp"
 #include "imgui/imgui.h"
@@ -744,8 +745,25 @@ void show_iwad_button()
     ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, frame_bg_color);
     ImGui::PushStyleColor(ImGuiCol_FrameBgActive, frame_bg_color);
 
+    // Build display names, disambiguating duplicate filenames with numbered suffixes
+    std::vector<std::string> iwad_paths;
+    for (size_t i = 0; i < config["iwads"].size(); i++)
+    {
+        iwad_paths.push_back(config["iwads"][i]);
+    }
+    std::map<std::string, std::string> iwad_display_names = build_display_names(iwad_paths);
+
     std::string filepath_string = config["selected_iwad"];
-    std::string selected_iwad_name = filepath_string.empty() ? "IWAD: None" : "IWAD: " + std::filesystem::path(filepath_string).filename().string();
+    std::string selected_iwad_name;
+    if (filepath_string.empty())
+    {
+        selected_iwad_name = "IWAD: None";
+    }
+    else
+    {
+        auto it = iwad_display_names.find(filepath_string);
+        selected_iwad_name = "IWAD: " + (it != iwad_display_names.end() ? it->second : std::filesystem::path(filepath_string).filename().string());
+    }
 
     ImGui::PushItemWidth(300);
     if (ImGui::BeginCombo("##iwad_selector", selected_iwad_name.c_str(), ImGuiComboFlags_WidthFitPreview))
@@ -768,12 +786,16 @@ void show_iwad_button()
         for (size_t i = 0; i < config["iwads"].size(); i++)
         {
             std::string iwad_path = config["iwads"][i];
-            std::string filename = std::filesystem::path(iwad_path).filename().string();
+            std::string display_name = iwad_display_names[iwad_path];
             bool is_selected = (config["selected_iwad"] == iwad_path);
-            if (ImGui::Selectable(("IWAD: " + filename).c_str(), is_selected))
+            if (ImGui::Selectable(("IWAD: " + display_name).c_str(), is_selected))
             {
                 config["selected_iwad"] = iwad_path;
                 write_config_file(get_config_file_path(), config);
+            }
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip("%s", iwad_path.c_str());
             }
             if (is_selected)
             {
