@@ -69,7 +69,7 @@ info "Packaging Mac zip..."
 
 # --- Linux build ---
 info "Building Linux (SSH to $WSL_HOST)..."
-ssh "$WSL_HOST" "cd '$WSL_WORKSPACE' && git pull && make clean && make linux"
+ssh "$WSL_HOST" "cd '$WSL_WORKSPACE' && git pull && make clean && make build/just_launch_doom_linux"
 
 info "Copying Linux binary..."
 scp "$WSL_HOST:$WSL_WORKSPACE/build/just_launch_doom_linux" "$BUILD_DIR/just_launch_doom_linux"
@@ -79,7 +79,7 @@ info "Packaging Linux zip..."
 
 # --- Windows build ---
 info "Building Windows (SSH to $WIN_HOST)..."
-ssh "$WIN_HOST" "cd '$WIN_WORKSPACE' && git pull && make clean && make windows"
+ssh "$WIN_HOST" "cd /d $WIN_WORKSPACE && git pull && C:\msys64\msys2_shell.cmd -mingw64 -defterm -no-start -here -c \"make clean && make windows\""
 
 info "Copying Windows binary..."
 scp "$WIN_HOST:$WIN_WORKSPACE/build/JustLaunchDoom.exe" "$BUILD_DIR/JustLaunchDoom.exe"
