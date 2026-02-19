@@ -20,7 +20,7 @@
 #error This backend requires SDL 2.0.17+ because of SDL_RenderGeometry() function
 #endif
 
-#define VERSION "0.1.16"
+#define VERSION "0.1.17"
 
 const std::vector<std::string> CONFIG_EXTENSIONS = {".cfg", ".ini"};
 
