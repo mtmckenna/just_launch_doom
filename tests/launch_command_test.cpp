@@ -81,7 +81,7 @@ TEST_CASE("Mixed file types produce correct grouped arguments")
     CHECK(result.find("-deh") != std::string::npos);
     CHECK(result.find("-edf") != std::string::npos);
 
-    // -file should come before -deh, which should come before -edf
+    // Flags appear in order of first selection: maps.wad (-file) first, patch.deh (-deh) second, root.edf (-edf) third
     size_t file_pos = result.find("-file");
     size_t deh_pos = result.find("-deh");
     size_t edf_pos = result.find("-edf");
@@ -98,6 +98,24 @@ TEST_CASE("Mixed file types produce correct grouped arguments")
 
     // EDF files should be grouped under -edf
     CHECK(result.find("root.edf") != std::string::npos);
+}
+
+TEST_CASE("Flag order follows selection order across different flag types")
+{
+    // DEH selected first, then WAD — should produce -deh before -file
+    std::vector<std::string> deh_first = {"bloodcolor.deh", "cblood.pk3"};
+    std::string result = build_launch_file_args(deh_first);
+    CHECK(result.find("-deh") < result.find("-file"));
+
+    // WAD selected first, then DEH — should produce -file before -deh
+    std::vector<std::string> wad_first = {"cblood.pk3", "bloodcolor.deh"};
+    result = build_launch_file_args(wad_first);
+    CHECK(result.find("-file") < result.find("-deh"));
+
+    // EDF selected first, then WAD — should produce -edf before -file
+    std::vector<std::string> edf_first = {"root.edf", "maps.wad"};
+    result = build_launch_file_args(edf_first);
+    CHECK(result.find("-edf") < result.find("-file"));
 }
 
 TEST_CASE("Empty file list produces empty result")

@@ -22,39 +22,33 @@ bool has_extension(const std::string &filepath, const std::vector<std::string> &
 
 std::string build_launch_file_args(const std::vector<std::string> &selected_paths)
 {
-    std::string wad_files = "";
-    std::string deh_files = "";
-    std::string edf_files = "";
+    auto get_flag = [](const std::string &filepath) -> std::string
+    {
+        if (has_extension(filepath, DEH_EXTENSIONS)) return "-deh";
+        if (has_extension(filepath, EDF_EXTENSIONS)) return "-edf";
+        return "-file";
+    };
+
+    std::vector<std::string> flag_order;
+    std::map<std::string, std::string> flag_files;
 
     for (const auto &filepath : selected_paths)
     {
+        std::string flag = get_flag(filepath);
         std::string quoted = "\"" + filepath + "\" ";
-        if (has_extension(filepath, DEH_EXTENSIONS))
+
+        if (flag_files.find(flag) == flag_files.end())
         {
-            deh_files += quoted;
+            flag_order.push_back(flag);
+            flag_files[flag] = "";
         }
-        else if (has_extension(filepath, EDF_EXTENSIONS))
-        {
-            edf_files += quoted;
-        }
-        else
-        {
-            wad_files += quoted;
-        }
+        flag_files[flag] += quoted;
     }
 
     std::string result = "";
-    if (!wad_files.empty())
+    for (const auto &flag : flag_order)
     {
-        result += " -file " + wad_files;
-    }
-    if (!deh_files.empty())
-    {
-        result += " -deh " + deh_files;
-    }
-    if (!edf_files.empty())
-    {
-        result += " -edf " + edf_files;
+        result += " " + flag + " " + flag_files[flag];
     }
 
     return result;
