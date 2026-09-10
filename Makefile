@@ -134,6 +134,11 @@ test:
 	$(BUILD_DIR)/launch_command_test
 
 	@echo ""
+	@echo "Running PWAD selection tests..."
+	$(CXX) -std=c++17 tests/pwad_selection_test.cpp src/launch_utils.cpp -o $(BUILD_DIR)/pwad_selection_test
+	$(BUILD_DIR)/pwad_selection_test
+
+	@echo ""
 	@echo "===================================="
 	@echo "All tests completed successfully! ✅"
 
