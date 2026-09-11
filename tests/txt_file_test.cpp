@@ -7,17 +7,28 @@
 
 namespace fs = std::filesystem;
 
-// Join the same way the code under test does. Concatenating a literal forward
-// slash produces the wrong expected value on Windows, where fs::path joins with
-// a backslash.
+// The separator detect_companion_txt_file() is expected to emit on this
+// platform. Spelled out explicitly rather than derived from std::filesystem, so
+// these assertions state an independent expectation instead of mirroring
+// whatever the code under test happens to do today.
+#ifdef _WIN32
+static const char EXPECTED_SEPARATOR = '\\';
+#else
+static const char EXPECTED_SEPARATOR = '/';
+#endif
+
 static std::string join(const std::string& dir, const std::string& name) {
-    return (fs::path(dir) / name).string();
+    return dir + EXPECTED_SEPARATOR + name;
 }
 
-// Use the platform temp directory rather than a hardcoded absolute path, which
-// lands on the current drive root on Windows.
+// A writable scratch directory. std::filesystem is used only to locate it; the
+// assertions do not depend on how it joins paths.
 static std::string test_dir_path(const std::string& name) {
-    return (fs::temp_directory_path() / name).string();
+    std::string base = fs::temp_directory_path().string();
+    while (!base.empty() && (base.back() == '/' || base.back() == '\\')) {
+        base.pop_back();
+    }
+    return join(base, name);
 }
 
 // Mock the PwadFileInfo structure and functions we need to test
