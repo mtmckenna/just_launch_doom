@@ -321,6 +321,20 @@ std::string get_launch_command()
     return command;
 }
 
+// Drop every selected PWAD that lives in the given directory. Called when a
+// PWAD directory is removed so files from that directory stop being passed to
+// the source port on launch.
+void deselect_pwads_in_directory(const std::string &directory)
+{
+    std::vector<std::string> selected_paths;
+    for (const auto &path : config["selected_pwads"])
+    {
+        selected_paths.push_back(path.get<std::string>());
+    }
+
+    config["selected_pwads"] = remove_pwads_in_directory(selected_paths, directory);
+}
+
 void populate_pwad_list()
 {
     pwads.clear();
@@ -1107,7 +1121,9 @@ void show_pwad_button()
             ImGui::SameLine();
             if (ImGui::Button("Remove"))
             {
+                deselect_pwads_in_directory(dir);
                 config["pwad_directories"].erase(config["pwad_directories"].begin() + i);
+                write_config_file(get_config_file_path(), config);
                 populate_pwad_list();
             }
             set_cursor_hand();

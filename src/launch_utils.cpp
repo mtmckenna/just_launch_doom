@@ -90,3 +90,51 @@ std::map<std::string, std::string> build_display_names(const std::vector<std::st
 
     return display_names;
 }
+
+// Normalize a path for comparison: collapse "." / ".." segments, use forward
+// slashes, drop any trailing separator, and lowercase on Windows (where paths
+// are case-insensitive).
+static std::string normalize_for_comparison(const std::string &path)
+{
+    std::string normalized = std::filesystem::path(path).lexically_normal().generic_string();
+
+    while (normalized.length() > 1 && normalized.back() == '/')
+    {
+        normalized.pop_back();
+    }
+
+#ifdef _WIN32
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(), ::tolower);
+#endif
+
+    return normalized;
+}
+
+bool is_path_in_directory(const std::string &filepath, const std::string &directory)
+{
+    if (filepath.empty() || directory.empty())
+    {
+        return false;
+    }
+
+    // PWAD directories are scanned non-recursively, so only direct children of
+    // the directory belong to it. A nested directory that was added separately
+    // keeps its own files.
+    std::string parent = std::filesystem::path(filepath).parent_path().string();
+    return normalize_for_comparison(parent) == normalize_for_comparison(directory);
+}
+
+std::vector<std::string> remove_pwads_in_directory(const std::vector<std::string> &selected_paths, const std::string &directory)
+{
+    std::vector<std::string> remaining;
+
+    for (const auto &filepath : selected_paths)
+    {
+        if (!is_path_in_directory(filepath, directory))
+        {
+            remaining.push_back(filepath);
+        }
+    }
+
+    return remaining;
+}

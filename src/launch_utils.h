@@ -18,3 +18,5 @@ extern const std::vector<std::string> EDF_EXTENSIONS;
 bool has_extension(const std::string &filepath, const std::vector<std::string> &extensions);
 std::string build_launch_file_args(const std::vector<std::string> &selected_paths);
 std::map<std::string, std::string> build_display_names(const std::vector<std::string> &paths);
+bool is_path_in_directory(const std::string &filepath, const std::string &directory);
+std::vector<std::string> remove_pwads_in_directory(const std::vector<std::string> &selected_paths, const std::string &directory);
