@@ -1,4 +1,12 @@
+UNAME_S := $(shell uname -s)
+
+# clang++ is not available under MSYS2/MinGW; a command-line CXX= still wins.
+ifneq (,$(findstring MINGW,$(UNAME_S)))
+CXX := g++
+else
 CXX := clang++
+endif
+
 CXX_WIN := /mingw64/bin/g++.exe
 SRC_DIR := ./src
 SRC_DIR_WIN := src
@@ -7,9 +15,10 @@ BUILD_ASSETS_DIR := ./build_assets
 DEBUGFLAGS := -g -O0
 SDL_CFLAGS := $(shell sdl2-config --cflags)
 CXXFLAGS := $(DEBUGFLAGS) -std=c++17 $(SDL_CFLAGS) -I/usr/local/include -I./
+# Tests don't link SDL; including its cflags defines main=SDL_main on Windows.
+TEST_CXXFLAGS := $(DEBUGFLAGS) -std=c++17 -I/usr/local/include -I./
 CXXFLAGS_LINUX := -std=c++17 $(SDL_CFLAGS) -I./ $(DEBUGFLAGS)
 CXXFLAGS_WIN := -std=c++17 $(SDL_CFLAGS) -I./ $(DEBUGFLAGS)
-UNAME_S := $(shell uname -s)
 EXECUTABLE := just_launch_doom
 
 ifneq (,$(findstring Linux,$(UNAME_S)))
@@ -120,22 +129,22 @@ test:
 	@echo "===================================="
 
 	@echo "Running config migration tests..."
-	$(CXX) $(CXXFLAGS) tests/config_migration_test.cpp src/config_utils.cpp src/config_migration.cpp -o $(BUILD_DIR)/config_migration_test
+	$(CXX) $(TEST_CXXFLAGS) tests/config_migration_test.cpp src/config_utils.cpp src/config_migration.cpp -o $(BUILD_DIR)/config_migration_test
 	$(BUILD_DIR)/config_migration_test
 
 	@echo ""
 	@echo "Running TXT file tests..."
-	$(CXX) $(CXXFLAGS) tests/txt_file_test.cpp -o $(BUILD_DIR)/txt_file_test
+	$(CXX) $(TEST_CXXFLAGS) tests/txt_file_test.cpp -o $(BUILD_DIR)/txt_file_test
 	$(BUILD_DIR)/txt_file_test
 
 	@echo ""
 	@echo "Running launch command tests..."
-	$(CXX) -std=c++17 tests/launch_command_test.cpp src/launch_utils.cpp -o $(BUILD_DIR)/launch_command_test
+	$(CXX) $(TEST_CXXFLAGS) tests/launch_command_test.cpp src/launch_utils.cpp -o $(BUILD_DIR)/launch_command_test
 	$(BUILD_DIR)/launch_command_test
 
 	@echo ""
 	@echo "Running PWAD selection tests..."
-	$(CXX) -std=c++17 tests/pwad_selection_test.cpp src/launch_utils.cpp -o $(BUILD_DIR)/pwad_selection_test
+	$(CXX) $(TEST_CXXFLAGS) tests/pwad_selection_test.cpp src/launch_utils.cpp -o $(BUILD_DIR)/pwad_selection_test
 	$(BUILD_DIR)/pwad_selection_test
 
 	@echo ""

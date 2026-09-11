@@ -7,6 +7,30 @@
 
 namespace fs = std::filesystem;
 
+// The separator detect_companion_txt_file() is expected to emit on this
+// platform. Spelled out explicitly rather than derived from std::filesystem, so
+// these assertions state an independent expectation instead of mirroring
+// whatever the code under test happens to do today.
+#ifdef _WIN32
+static const char EXPECTED_SEPARATOR = '\\';
+#else
+static const char EXPECTED_SEPARATOR = '/';
+#endif
+
+static std::string join(const std::string& dir, const std::string& name) {
+    return dir + EXPECTED_SEPARATOR + name;
+}
+
+// A writable scratch directory. std::filesystem is used only to locate it; the
+// assertions do not depend on how it joins paths.
+static std::string test_dir_path(const std::string& name) {
+    std::string base = fs::temp_directory_path().string();
+    while (!base.empty() && (base.back() == '/' || base.back() == '\\')) {
+        base.pop_back();
+    }
+    return join(base, name);
+}
+
 // Mock the PwadFileInfo structure and functions we need to test
 struct PwadFileInfo {
     std::string filepath;
@@ -28,13 +52,13 @@ std::string detect_companion_txt_file(const std::string& pwad_filepath) {
 
 TEST_CASE("Text file detection works correctly") {
     // Create temporary test directory
-    std::string test_dir = "/tmp/just_launch_doom_test";
+    std::string test_dir = test_dir_path("just_launch_doom_test");
     fs::create_directories(test_dir);
     
     SUBCASE("Detects existing companion text file") {
         // Create test PWAD and text files
-        std::string pwad_path = test_dir + "/test.wad";
-        std::string txt_path = test_dir + "/test.txt";
+        std::string pwad_path = join(test_dir, "test.wad");
+        std::string txt_path = join(test_dir, "test.txt");
         
         std::ofstream pwad_file(pwad_path);
         pwad_file << "fake pwad content";
@@ -50,7 +74,7 @@ TEST_CASE("Text file detection works correctly") {
     }
     
     SUBCASE("Returns empty string when no companion text file exists") {
-        std::string pwad_path = test_dir + "/no_txt.wad";
+        std::string pwad_path = join(test_dir, "no_txt.wad");
         
         std::ofstream pwad_file(pwad_path);
         pwad_file << "fake pwad content";
@@ -64,8 +88,8 @@ TEST_CASE("Text file detection works correctly") {
         std::vector<std::string> extensions = {".pk3", ".pk4", ".pk7", ".iwad"};
         
         for (const auto& ext : extensions) {
-            std::string pwad_path = test_dir + "/test" + ext;
-            std::string txt_path = test_dir + "/test.txt";
+            std::string pwad_path = join(test_dir, "test" + ext);
+            std::string txt_path = join(test_dir, "test.txt");
             
             std::ofstream pwad_file(pwad_path);
             pwad_file << "fake content";
@@ -85,8 +109,8 @@ TEST_CASE("Text file detection works correctly") {
     }
     
     SUBCASE("Handles files with complex names") {
-        std::string pwad_path = test_dir + "/doom2-map01-v2.1.wad";
-        std::string txt_path = test_dir + "/doom2-map01-v2.1.txt";
+        std::string pwad_path = join(test_dir, "doom2-map01-v2.1.wad");
+        std::string txt_path = join(test_dir, "doom2-map01-v2.1.txt");
         
         std::ofstream pwad_file(pwad_path);
         pwad_file << "fake pwad content";
@@ -101,8 +125,8 @@ TEST_CASE("Text file detection works correctly") {
     }
     
     SUBCASE("Case sensitivity test") {
-        std::string pwad_path = test_dir + "/Test.WAD";
-        std::string txt_path = test_dir + "/Test.txt";
+        std::string pwad_path = join(test_dir, "Test.WAD");
+        std::string txt_path = join(test_dir, "Test.txt");
         
         std::ofstream pwad_file(pwad_path);
         pwad_file << "fake pwad content";
@@ -152,11 +176,11 @@ TEST_CASE("PwadFileInfo structure works correctly") {
 
 TEST_CASE("File path handling edge cases") {
     SUBCASE("Handles paths with spaces") {
-        std::string test_dir = "/tmp/test with spaces";
+        std::string test_dir = test_dir_path("test with spaces");
         fs::create_directories(test_dir);
         
-        std::string pwad_path = test_dir + "/file with spaces.wad";
-        std::string txt_path = test_dir + "/file with spaces.txt";
+        std::string pwad_path = join(test_dir, "file with spaces.wad");
+        std::string txt_path = join(test_dir, "file with spaces.txt");
         
         std::ofstream pwad_file(pwad_path);
         pwad_file << "content";
@@ -173,11 +197,11 @@ TEST_CASE("File path handling edge cases") {
     }
     
     SUBCASE("Handles paths with special characters") {
-        std::string test_dir = "/tmp/test-dir_v2.1";
+        std::string test_dir = test_dir_path("test-dir_v2.1");
         fs::create_directories(test_dir);
         
-        std::string pwad_path = test_dir + "/mod-v1.2_final.pk3";
-        std::string txt_path = test_dir + "/mod-v1.2_final.txt";
+        std::string pwad_path = join(test_dir, "mod-v1.2_final.pk3");
+        std::string txt_path = join(test_dir, "mod-v1.2_final.txt");
         
         std::ofstream pwad_file(pwad_path);
         pwad_file << "content";
